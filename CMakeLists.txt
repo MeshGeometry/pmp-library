@@ -7,10 +7,10 @@ set(PMP_MINOR_VERSION 1)
 set(PMP_PATCH_VERSION 0)
 set(PMP_VERSION ${PMP_MAJOR_VERSION}.${PMP_MINOR_VERSION}.${PMP_PATCH_VERSION})
 
-option(PMP_BUILD_APPS     "Build the PMP applications"  ON)
-option(PMP_BUILD_EXAMPLES "Build the PMP examples"      ON)
-option(PMP_BUILD_TESTS    "Build the PMP test programs" ON)
-option(PMP_BUILD_DOCS     "Build the PMP documentation" ON)
+option(PMP_BUILD_APPS     "Build the PMP applications"  OFF)
+option(PMP_BUILD_EXAMPLES "Build the PMP examples"      OFF)
+option(PMP_BUILD_TESTS    "Build the PMP test programs" OFF)
+option(PMP_BUILD_DOCS     "Build the PMP documentation" OFF)
 
 # set output paths
 set(PROJECT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -40,17 +40,7 @@ set(GLFW_INSTALL OFF CACHE BOOL "")
 
 # setup use of GLFW and GLEW
 if (NOT EMSCRIPTEN)
-    add_subdirectory(${GLFW_SOURCE_DIR} ${GLEW_SOURCE_DIR})
-
-    include_directories(${GLFW_SOURCE_DIR}/include
-                        ${GLFW_SOURCE_DIR}/deps
-                        ${GLEW_SOURCE_DIR}/include)
-
-    add_definitions(-DGLEW_STATIC)
-    add_library(glew STATIC
-                ${GLEW_SOURCE_DIR}/src/glew.c
-                ${GLEW_SOURCE_DIR}/include)
-    target_link_libraries(glew ${GLFW_LIBRARIES})
+    
 
 else()
 
@@ -59,9 +49,6 @@ else()
 
 endif()
 
-# setup IMGUI
-include_directories(${IMGUI_SOURCE_DIR})
-add_subdirectory(${IMGUI_SOURCE_DIR})
 
 # setup PLY
 include_directories(${RPLY_SOURCE_DIR})
@@ -74,35 +61,7 @@ include(AddFileDependencies)
 include_directories(${PROJECT_SOURCE_DIR}/src/)
 
 # setup for code coverage testing
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND CMAKE_COMPILER_IS_GNUCXX)
-  enable_testing()
 
-  # set compiler flags
-  set(CMAKE_CXX_FLAGS "-g -O0 --coverage")
-
-  # find required tools
-  find_program(GCOV gcov)
-  find_program(LCOV lcov)
-  find_program(GENHTML genhtml)
-
-  # add coverage target
-  add_custom_target(coverage
-
-    # cleanup old counters
-    ${LCOV} --directory . --zerocounters
-
-    # run test command
-    COMMAND make test
-
-    # gather data, generate report
-    COMMAND ${LCOV} --directory . --capture --output-file coverage.info
-    COMMAND ${LCOV} --remove coverage.info '*/external/*' '*/tests/*' '/usr/*' --output-file coverage.info.cleaned
-    COMMAND ${GENHTML} --demangle-cpp -o coverage coverage.info.cleaned
-    COMMAND ${CMAKE_COMMAND} -E remove coverage.info coverage.info.cleaned
-
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-endif()
 
 # set default compiler flags
 if((UNIX OR APPLE) AND CMAKE_COMPILER_IS_GNUCXX)
@@ -161,19 +120,7 @@ if (EMSCRIPTEN)
     endif()
 else()
     add_subdirectory(src/pmp)
-    if (PMP_BUILD_APPS)
-        add_subdirectory(src/apps)
-    endif()
-    if (PMP_BUILD_DOCS)
-        add_subdirectory(docs)
-    endif()
-    if (PMP_BUILD_EXAMPLES)
-        add_subdirectory(examples)
-    endif()
-    if (PMP_BUILD_TESTS)
-        enable_testing()
-        add_subdirectory(tests)
-    endif()
+
 endif()
 
 set(CPACK_PACKAGE_VERSION ${PMP_VERSION})
