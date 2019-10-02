@@ -54,6 +54,4 @@ if(NOT EMSCRIPTEN)
 
 endif()
 
-add_subdirectory(visualization)
-
 include(algorithms/CMakeLists.txt)
