@@ -9,6 +9,14 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: .5em;
 }
 
+.textblock h1 {
+    font-size: x-large;
+}
+
+.textblock h2 {
+    font-size: large;
+}
+
 #nav-sync
 {
     visibility: hidden;
@@ -26,13 +34,13 @@ h1, h2, h3, h4, h5, h6 {
     height: 55px;
 }
 
-#footer hr
+#nav-path hr
 {
     margin: 0;
     padding: 0;
 }
 
-#footer address
+#nav-path address
 {
     border-top: 2px solid #09a8ff;
     padding-top: 10px;
@@ -165,18 +173,15 @@ div.fragment {
 
 pre.fragment {
     font-family: inconsolataregular;
-    font-size: 110%;
 }
 
 div.line {
     font-family: inconsolataregular;
-    font-size: 110%;
     line-height: 1.1rem;
 }
 
 code {
   font-family: inconsolataregular;
-  font-size: 110%;
 }
 
 .overload {
@@ -190,13 +195,11 @@ table.directory {
 .entry, .memitem, .memItemLeft, .memItemRight
 {
     font-family: inconsolataregular;
-    font-size: 110%;
 }
 
 a.el {
     font-family: inconsolataregular;
     font-weight: normal;
-    font-size: 110%;
 }
 
 table.doxtable th {
@@ -211,11 +214,10 @@ table.doxtable th {
 .memtitle, table.memname {
     font-family: inconsolataregular;
     font-weight: normal;
-    font-size: 110%;
 }
 
 div.groupHeader {
-    font-size: 125%
+    font-size: 125%;
     font-style: normal;
     font-weight: normal;
     color: #02517C;

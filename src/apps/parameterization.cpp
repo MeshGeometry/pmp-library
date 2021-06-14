@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/visualization/MeshViewer.h>
 #include <pmp/algorithms/SurfaceParameterization.h>
@@ -13,29 +7,32 @@
 
 using namespace pmp;
 
-//=============================================================================
-
 class Viewer : public MeshViewer
 {
 public:
     Viewer(const char* title, int width, int height);
+    virtual bool load_mesh(const char* filename) override;
 
 protected:
     virtual void process_imgui() override;
     virtual void draw(const std::string& _draw_mode) override;
-
-private:
-    SurfaceParameterization param_;
 };
 
-//=============================================================================
-
 Viewer::Viewer(const char* title, int width, int height)
-    : MeshViewer(title, width, height), param_(mesh_)
+    : MeshViewer(title, width, height)
 {
 }
 
-//=============================================================================
+bool Viewer::load_mesh(const char* filename)
+{
+    bool ok = MeshViewer::load_mesh(filename);
+
+    // alloc tex coordinates
+    mesh_.vertex_property<TexCoord>("v:tex", TexCoord(0, 0));
+    update_mesh();
+
+    return ok;
+}
 
 void Viewer::process_imgui()
 {
@@ -50,7 +47,16 @@ void Viewer::process_imgui()
         ImGui::Spacing();
         if (ImGui::Button("Discrete Harmonic Param"))
         {
-            param_.harmonic();
+            try
+            {
+                SurfaceParameterization param(mesh_);
+                param.harmonic();
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             mesh_.use_checkerboard_texture();
             set_draw_mode("Texture");
             update_mesh();
@@ -59,15 +65,22 @@ void Viewer::process_imgui()
         ImGui::Spacing();
         if (ImGui::Button("Least Squares Conformal Map"))
         {
-            param_.lscm();
+            try
+            {
+                SurfaceParameterization param(mesh_);
+                param.lscm();
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             mesh_.use_checkerboard_texture();
             set_draw_mode("Texture");
             update_mesh();
         }
     }
 }
-
-//=============================================================================
 
 void Viewer::draw(const std::string& draw_mode)
 {
@@ -96,8 +109,6 @@ void Viewer::draw(const std::string& draw_mode)
     glViewport(0, 0, width(), height());
 }
 
-//=============================================================================
-
 int main(int argc, char** argv)
 {
 #ifndef __EMSCRIPTEN__
@@ -111,5 +122,3 @@ int main(int argc, char** argv)
     return window.run();
 #endif
 }
-
-//=============================================================================

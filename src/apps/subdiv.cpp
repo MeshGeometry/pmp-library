@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/visualization/MeshViewer.h>
 #include <pmp/algorithms/SurfaceSubdivision.h>
@@ -14,8 +8,6 @@
 #include <imgui.h>
 
 using namespace pmp;
-
-//=============================================================================
 
 class Viewer : public MeshViewer
 {
@@ -26,16 +18,12 @@ protected:
     virtual void process_imgui();
 };
 
-//=============================================================================
-
 Viewer::Viewer(const char* title, int width, int height, bool showgui)
     : MeshViewer(title, width, height, showgui)
 {
     set_draw_mode("Hidden Line");
     crease_angle_ = 0.0;
 }
-
-//=============================================================================
 
 void Viewer::process_imgui()
 {
@@ -68,15 +56,31 @@ void Viewer::process_imgui()
 
         if (ImGui::Button("Loop Subdivision"))
         {
-            SurfaceSubdivision(mesh_).loop();
+            try
+            {
+                SurfaceSubdivision(mesh_).loop();
+            }
+            catch (const InvalidInputException& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
 
-        //if (ImGui::Button("Sqrt(3) Subdivision"))
-        //{
-        //SurfaceSubdivision(mesh_).sqrt3();
-        //update_mesh();
-        //}
+        if (ImGui::Button("Sqrt(3) Subdivision"))
+        {
+            try
+            {
+                SurfaceSubdivision(mesh_).sqrt3();
+            }
+            catch (const InvalidInputException& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
+            update_mesh();
+        }
 
         if (ImGui::Button("Catmull-Clark Subdivision"))
         {
@@ -85,8 +89,6 @@ void Viewer::process_imgui()
         }
     }
 }
-
-//=============================================================================
 
 int main(int argc, char** argv)
 {
@@ -101,5 +103,3 @@ int main(int argc, char** argv)
     return window.run();
 #endif
 }
-
-//=============================================================================

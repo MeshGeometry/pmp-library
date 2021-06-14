@@ -1,5 +1,7 @@
 # Coding Style {#codingstyle}
 
+[TOC]
+
 This section describes some of the coding standards that are being used in the
 pmp-library source tree. Although these standards should never be regarded as
 strict requirements they are still important to establish a minimum level of
@@ -16,61 +18,61 @@ The names of user-defined types such as classes, structs and enums use
 `CamelCase` notation. The names of persons such as Cholesky or Delaunay are
 properly capitalized as well.
 
-~~~~{.cpp}
-    class SurfaceMesh { ... };
-    struct Flags { ... };
-    enum TextureMode { ColdWarmTexture, CheckerboardTexture, OtherTexture };
-~~~~
+```cpp
+class SurfaceMesh { ... };
+struct Flags { ... };
+enum TextureMode { ColdWarmTexture, CheckerboardTexture, OtherTexture };
+```
 
 ### Functions
 
 Function names are written using `snake_case`. All characters are
 lowercase. Separate words by underscores.
 
-~~~~{.cpp}
-    class MeshViewer
-    {
-        bool load_mesh(const char* filename);
-    };
-~~~~
+```cpp
+class MeshViewer
+{
+    bool load_mesh(const char* filename);
+};
+```
 
 ### Variables
 
 Variable names use `snake_case` notation. All characters are lowercase. Separate
 words with underscores. Class member variables have an underscore `_` suffix.
 
-~~~~{.cpp}
-    int global_var;
+```cpp
+int global_var;
 
-    class ExampleClass
-    {
-    protected:
-        double member_variable_;
-        static double static_member_;
-    };
-~~~~
+class ExampleClass
+{
+protected:
+    double member_variable_;
+    static double static_member_;
+};
+```
 
-_Exception:_ Public members of a `struct` holding just a group of variables
-may omit the underscore suffix:
+_Exception:_ Public members of a `struct` holding just a group of variables may
+omit the underscore suffix:
 
-~~~~{.cpp}
-    struct NearestNeighbor
-    {
-        Scalar dist;
-        SurfaceMesh::Face face;
-        Point nearest;
-        int tests;
-    };
-~~~~
+```cpp
+struct NearestNeighbor
+{
+    Scalar dist;
+    SurfaceMesh::Face face;
+    Point nearest;
+    int tests;
+};
+```
 
 _Exception:_ For the sake of similarity with common mathematical notation, we
 sometimes use uppercase letters, e.g., to denote matrices when solving a linear
 system:
 
-~~~~{.cpp}
-    Eigen::SparseMatrix<dobule> A(n, n);
-    Eigen::MatrixXd B(n, 3);
-~~~~
+```cpp
+Eigen::SparseMatrix<double> A(n, n);
+Eigen::MatrixXd B(n, 3);
+```
 
 ### File Names
 
@@ -89,16 +91,16 @@ The expressions following an `if, else, while, do ... while` or `for` statement
 should always be enclosed in braces. The braces enclosing a block should be
 placed in the same column, on separate lines.
 
-~~~~{.cpp}
-    if (foo == bar)
-    {
-        std::cout << "baz" << std::endl;
-    }
-    else
-    {
-        std::cout << "barbaz" << std::endl;
-    }
-~~~~
+```cpp
+if (foo == bar)
+{
+    std::cout << "baz" << std::endl;
+}
+else
+{
+    std::cout << "barbaz" << std::endl;
+}
+```
 
 ### Line Length
 
@@ -107,16 +109,16 @@ statement per line.
 
 ### Indentation
 
-Use spaces instead of tabs. Indent the code by four spaces for each
-level of indentation. Avoid trailing whitespaces at the end of a
-line as well as on empty lines.
+Use spaces instead of tabs. Indent the code by four spaces for each level of
+indentation. Avoid trailing whitespace at the end of a line as well as on empty
+lines.
 
 ## Miscellaneous
 
 This section describes some basic programming conventions developers should
 adhere to.
 
-### Declaration order
+### Declaration Order
 
 Group the sections of a class in the following order: public, protected,
 private.
@@ -125,9 +127,16 @@ Use one section for each type of access specifier.
 
 Omit empty sections.
 
-Within a section use the following order: typedefs and enums, constants,
-constructors, destructor, operators, methods, static methods, data members,
-static data members.
+Within a section use the following order:
+
+1. typedefs and enums
+2. constants
+3. constructors and destructor
+4. operators
+5. methods
+6. static methods
+7. data members
+8. static data members
 
 ### Comments
 
@@ -136,11 +145,11 @@ Use C++-style comments, i.e., `// my comment.`
 ### Doxygen Documentation Comments
 
 We use [Doxygen](http://www.doxygen.org/index.html) to generate our API
-documentation. All public types and interfaces should be properly
-documented. This usually includes a short abstract not longer than a sentence as
-well as a more detailed discussion of what the function does. We use `//!` for
-doxygen comments. The following is an example what a full documentation comment
-could look like:
+documentation. All public types and interfaces should be properly documented.
+This usually includes a short abstract not longer than a sentence as well as a
+more detailed discussion of what the function does. We use `//!` for Doxygen
+comments. The following is an example what a full documentation comment could
+look like:
 
 \verbatim
 //! \brief Does foo.
@@ -151,8 +160,10 @@ could look like:
 //! \param[in] use_bar toggle to switch method
 //! \param[out] results filled with results from foo
 //!
-//! \returns true on success.
+//! \return true on success.
 \endverbatim
+
+Use `\p` to reference (member) function parameters.
 
 Another good practice is to document pre- and post-conditions for performing an
 operation. Those can be documented using the `\pre` and `\post` Doxygen
@@ -165,26 +176,52 @@ it implemented in this manner?
 
 ### Include Guards
 
-Use the <tt>\#pragma once</tt> compiler directive at the beginning of each
-header file in order to protect against multiple inclusion. Although this is not
-officially part of the language this feature is supported by all major
-compilers and is much more convenient than conventional header guards.
+Use the
+
+```cpp
+#pragma once
+```
+
+compiler directive at the beginning of each header file in order to protect
+against multiple inclusion. Although this is not officially part of the language
+this feature is supported by all major compilers and is much more convenient
+than conventional header guards.
+
+### Header Include Order
+
+Use the following order to include header files:
+
+1. Related header
+2. C standard library headers
+3. C++ standard library headers
+4. Other library headers
+5. Project library headers
+
+Separate each group by a blank line. Optional: Sort headers alphabetically
+within a group.
+
+### Include Style
+
+Use quotes to include other project headers. Use the full relative path from the
+project `src` directory. Example:
+
+```cpp
+#include "pmp/algorithms/SurfaceRemeshing.h"
+```
 
 ### Namespace
 
 Use the `pmp` namespace in order to avoid conflicts. In source files, do not add
 an additional level of indentation due to the namespace:
 
-~~~~{.cpp}
-        namespace pmp {
-
-        class ExampleClass
-        {
-        ...
-        };
-
-        }
-~~~~
+```cpp
+namespace pmp {
+class ExampleClass
+{
+...
+};
+}
+```
 
 ### Boolean Prefixes
 
@@ -206,7 +243,7 @@ determine the proper types.
 
 ### Structs vs. Classes
 
-Use plain structs for data objectes providing nothing but a collection of other
+Use plain structs for data objects providing nothing but a collection of other
 data types, e.g., a collection of parameters passed to a functions. Such a
 struct should not contain any further functionality than what is required for
 construction, destruction, or initialization. In contrast to class member
@@ -217,6 +254,11 @@ variables, struct members do not have a underscore `_` suffix.
 Localize variable scope and avoid declaring all variables at the beginning of a
 function or code block.
 
+### Prefer C++ over C
+
+Give preference to C++ and STL constructs over C-style ones. Example: Use
+`std::numeric_limits<float>\:\:max()` instead of `FLT_MAX`.
+
 ## Using clang-format
 
 Please use the [clang-format](https://clang.llvm.org/docs/ClangFormat.html) tool
@@ -224,32 +266,62 @@ and the corresponding `.clang-format` configuration file from the repository to
 properly format your code. We also provide a convenience CMake target to run
 clang-format on all source files:
 
-    $ make clang-format
+```shell
+    make clang-format
+```
 
 This requires that the `clang-format` executable is found during CMake
 configuration. The exact path to the executable can be specified using
 
-    $ cmake -DCLANG_FORMAT_EXE=<path/to/executable> ..
-
-Look for a line like this
-
-    -- clang-format found: /usr/bin/clang-format
-
-in the CMake configuration output.
+```shell
+    cmake -DCLANG_FORMAT_EXE=<path/to/executable> ..
+```
 
 In case you want to preserve the special formatting of a particular code block
 such as a matrix intialization add the `// clang-format off` and `//
 clang-format on` directives around this block:
 
-~~~~{.cpp}
-    // clang-format off
-    Mat4<Scalar> m;
-    m(0, 0) = x[0]; m(0, 1) = x[1]; m(0, 2) = x[2]; m(0, 3) = -dot(x, eye);
-    m(1, 0) = y[0]; m(1, 1) = y[1]; m(1, 2) = y[2]; m(1, 3) = -dot(y, eye);
-    m(2, 0) = z[0]; m(2, 1) = z[1]; m(2, 2) = z[2]; m(2, 3) = -dot(z, eye);
-    m(3, 0) = 0.0;  m(3, 1) = 0.0;  m(3, 2) = 0.0;  m(3, 3) = 1.0;
-    // clang-format on
-~~~~
+```cpp
+// clang-format off
+Mat4<Scalar> m;
+m(0, 0) = x[0]; m(0, 1) = x[1]; m(0, 2) = x[2]; m(0, 3) = -dot(x, eye);
+m(1, 0) = y[0]; m(1, 1) = y[1]; m(1, 2) = y[2]; m(1, 3) = -dot(y, eye);
+m(2, 0) = z[0]; m(2, 1) = z[1]; m(2, 2) = z[2]; m(2, 3) = -dot(z, eye);
+m(3, 0) = 0.0;  m(3, 1) = 0.0;  m(3, 2) = 0.0;  m(3, 3) = 1.0;
+// clang-format on
+```
+
+## Commit Messages {#commit-messages}
+
+Please write meaningful commit messages. See [this post](https://chris.beams.io/posts/git-commit/) for the why and how.
+
+The basic rules are:
+
+1. Separate subject from body with a blank line
+2. Limit the subject line to 50 characters
+3. Capitalize the subject line
+4. Do not end the subject line with a period
+5. Use the imperative mood in the subject line
+6. Wrap the body at 72 characters
+7. Use the body to explain what and why vs. how
+
+This is what an example might look like:
+
+```text
+Summarize changes in around 50 characters or less
+
+More detailed explanatory text, if necessary. Wrap it to about 72
+characters or so. Explain the problem this commit is solving.
+Focus on why you are making this change as opposed to how. Are there
+any side effects or counter-intuitive consequences?
+
+Reference issues at the bottom, sign off on last line:
+
+Resolves: #123
+See also: #456, #789
+
+Sign-off-by: Jane Miller <jane.miller@example.com>
+```
 
 ## See Also
 

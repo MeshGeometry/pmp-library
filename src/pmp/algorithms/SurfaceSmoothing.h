@@ -1,29 +1,15 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
+
 #pragma once
-//=============================================================================
 
-#include <pmp/SurfaceMesh.h>
-
-//=============================================================================
+#include "pmp/SurfaceMesh.h"
 
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup algorithms algorithms
-//! @{
-
-//=============================================================================
-
 //! \brief A class for Laplacian smoothing
 //! \details See also \cite desbrun_1999_implicit and \cite kazhdan_2012
+//! \ingroup algorithms
 class SurfaceSmoothing
 {
 public:
@@ -38,9 +24,11 @@ public:
     void explicit_smoothing(unsigned int iters = 10,
                             bool use_uniform_laplace = false);
 
-    //! Perform implicit Laplacian smoothing with \p timestep.
-    //! Decide whether to use uniform Laplacian or cotan Laplacian (default: cotan).
-    //! Decide whether to re-center and re-scale model after smoothing (default: true).
+    //! \brief Perform implicit Laplacian smoothing.
+    //! \param timestep The time step taken.
+    //! \param use_uniform_laplace Decide whether to use uniform Laplacian or cotan Laplacian. Default: cotan.
+    //! \param rescale Decide whether to re-center and re-scale model after smoothing. Default: true.
+    //! \throw SolverException in case of a failure to solve the linear system.
     void implicit_smoothing(Scalar timestep = 0.001,
                             bool use_uniform_laplace = false,
                             bool rescale = true);
@@ -69,8 +57,4 @@ private:
     unsigned int how_many_vertex_weights_;
 };
 
-//=============================================================================
-//! @}
-//=============================================================================
 } // namespace pmp
-//=============================================================================

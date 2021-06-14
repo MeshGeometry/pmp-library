@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/visualization/MeshViewer.h>
 #include <pmp/algorithms/SurfaceCurvature.h>
@@ -13,8 +7,6 @@
 #include <imgui.h>
 
 using namespace pmp;
-
-//=============================================================================
 
 class Viewer : public MeshViewer
 {
@@ -28,15 +20,11 @@ private:
     SurfaceSmoothing smoother_;
 };
 
-//=============================================================================
-
 Viewer::Viewer(const char* title, int width, int height)
     : MeshViewer(title, width, height), smoother_(mesh_)
 {
     crease_angle_ = 180.0;
 }
-
-//=============================================================================
 
 void Viewer::process_imgui()
 {
@@ -91,15 +79,30 @@ void Viewer::process_imgui()
 
         if (ImGui::Button("Implicit Smoothing"))
         {
+            // does the mesh have a boundary?
+            bool has_boundary = false;
+            for (auto v : mesh_.vertices())
+                if (mesh_.is_boundary(v))
+                    has_boundary = true;
+
+            // only re-scale if we don't have a (fixed) boundary
+            bool rescale = !has_boundary;
+
             Scalar dt =
                 uniform_laplace ? timestep : timestep * radius_ * radius_;
-            smoother_.implicit_smoothing(dt, uniform_laplace);
+            try
+            {
+                smoother_.implicit_smoothing(dt, uniform_laplace, rescale);
+            }
+            catch (const SolverException& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
     }
 }
-
-//=============================================================================
 
 int main(int argc, char** argv)
 {
@@ -114,5 +117,3 @@ int main(int argc, char** argv)
     return window.run();
 #endif
 }
-
-//=============================================================================

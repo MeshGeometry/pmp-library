@@ -1,30 +1,18 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/algorithms/DifferentialGeometry.h>
+#include "pmp/algorithms/DifferentialGeometry.h"
+
+#include <cmath>
 
 #include <limits>
-#include <cmath>
-#include <cfloat>
-
-//=============================================================================
 
 namespace pmp {
-
-//=============================================================================
 
 Scalar triangle_area(const Point& p0, const Point& p1, const Point& p2)
 {
     return Scalar(0.5) * norm(cross(p1 - p0, p2 - p0));
 }
-
-//-----------------------------------------------------------------------------
 
 Scalar triangle_area(const SurfaceMesh& mesh, Face f)
 {
@@ -38,8 +26,6 @@ Scalar triangle_area(const SurfaceMesh& mesh, Face f)
     return triangle_area(p0, p1, p2);
 }
 
-//-----------------------------------------------------------------------------
-
 Scalar surface_area(const SurfaceMesh& mesh)
 {
     Scalar area(0);
@@ -50,7 +36,26 @@ Scalar surface_area(const SurfaceMesh& mesh)
     return area;
 }
 
-//-----------------------------------------------------------------------------
+Scalar volume(const SurfaceMesh& mesh)
+{
+    if (!mesh.is_triangle_mesh())
+    {
+        throw InvalidInputException("Input is not a pure triangle mesh!");
+    }
+
+    Scalar volume(0);
+    for (const auto f : mesh.faces())
+    {
+        auto fv = mesh.vertices(f);
+        const auto& p0 = mesh.position(*fv);
+        const auto& p1 = mesh.position(*(++fv));
+        const auto& p2 = mesh.position(*(++fv));
+
+        volume += Scalar(1.0) / Scalar(6.0) * dot(cross(p0, p1), p2);
+    }
+
+    return std::abs(volume);
+}
 
 Point centroid(const SurfaceMesh& mesh, Face f)
 {
@@ -64,8 +69,6 @@ Point centroid(const SurfaceMesh& mesh, Face f)
     c /= n;
     return c;
 }
-
-//-----------------------------------------------------------------------------
 
 Point centroid(const SurfaceMesh& mesh)
 {
@@ -82,7 +85,31 @@ Point centroid(const SurfaceMesh& mesh)
     return center;
 }
 
-//-----------------------------------------------------------------------------
+void dual(SurfaceMesh& mesh)
+{
+    // the new dualized mesh
+    SurfaceMesh tmp;
+
+    // remember new vertices per face
+    auto fvertex = mesh.add_face_property<Vertex>("f:vertex");
+
+    // add centroid for each face
+    for (auto f : mesh.faces())
+        fvertex[f] = tmp.add_vertex(centroid(mesh, f));
+
+    // add new face for each vertex
+    for (auto v : mesh.vertices())
+    {
+        std::vector<Vertex> vertices;
+        for (auto f : mesh.faces(v))
+            vertices.push_back(fvertex[f]);
+
+        tmp.add_face(vertices);
+    }
+
+    // swap old and new meshes, don't copy properties
+    mesh.assign(tmp);
+}
 
 double cotan_weight(const SurfaceMesh& mesh, Edge e)
 {
@@ -127,8 +154,6 @@ double cotan_weight(const SurfaceMesh& mesh, Edge e)
 
     return weight;
 }
-
-//-----------------------------------------------------------------------------
 
 double voronoi_area(const SurfaceMesh& mesh, Vertex v)
 {
@@ -189,7 +214,7 @@ double voronoi_area(const SurfaceMesh& mesh, Vertex v)
                 cotq = dotq / triArea;
                 cotr = dotr / triArea;
 
-                // clamp cot(angle) by clamping angle to [1,179]
+                // clamp cot(angle) by clamping angle to [3, 177]
                 area += 0.125 * (sqrnorm(pr) * clamp_cot(cotq) +
                                  sqrnorm(pq) * clamp_cot(cotr));
             }
@@ -201,8 +226,6 @@ double voronoi_area(const SurfaceMesh& mesh, Vertex v)
 
     return area;
 }
-
-//-----------------------------------------------------------------------------
 
 double voronoi_area_barycentric(const SurfaceMesh& mesh, Vertex v)
 {
@@ -228,14 +251,12 @@ double voronoi_area_barycentric(const SurfaceMesh& mesh, Vertex v)
             pr = mesh.position(mesh.to_vertex(h1));
             pr -= p;
 
-            area += norm(cross(pq, pr)) / 3.0;
+            area += norm(cross(pq, pr)) / 6.0;
         }
     }
 
     return area;
 }
-
-//-----------------------------------------------------------------------------
 
 Point laplace(const SurfaceMesh& mesh, Vertex v)
 {
@@ -258,8 +279,6 @@ Point laplace(const SurfaceMesh& mesh, Vertex v)
 
     return laplace;
 }
-
-//-----------------------------------------------------------------------------
 
 Scalar angle_sum(const SurfaceMesh& mesh, Vertex v)
 {
@@ -287,8 +306,6 @@ Scalar angle_sum(const SurfaceMesh& mesh, Vertex v)
     return angles;
 }
 
-//-----------------------------------------------------------------------------
-
 VertexCurvature vertex_curvature(const SurfaceMesh& mesh, Vertex v)
 {
     VertexCurvature c;
@@ -315,6 +332,4 @@ VertexCurvature vertex_curvature(const SurfaceMesh& mesh, Vertex v)
     return c;
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

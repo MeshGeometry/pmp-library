@@ -1,28 +1,16 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/algorithms/SurfaceFeatures.h>
-#include <pmp/algorithms/SurfaceNormals.h>
-
-//=============================================================================
+#include "pmp/algorithms/SurfaceFeatures.h"
+#include "pmp/algorithms/SurfaceNormals.h"
 
 namespace pmp {
-
-//=============================================================================
 
 SurfaceFeatures::SurfaceFeatures(SurfaceMesh& mesh) : mesh_(mesh)
 {
     vfeature_ = mesh_.vertex_property("v:feature", false);
     efeature_ = mesh_.edge_property("e:feature", false);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceFeatures::clear()
 {
@@ -33,25 +21,26 @@ void SurfaceFeatures::clear()
         efeature_[e] = false;
 }
 
-//-----------------------------------------------------------------------------
-
-void SurfaceFeatures::detect_boundary()
+size_t SurfaceFeatures::detect_boundary()
 {
     for (auto v : mesh_.vertices())
         if (mesh_.is_boundary(v))
             vfeature_[v] = true;
 
+    size_t n_edges = 0;
     for (auto e : mesh_.edges())
         if (mesh_.is_boundary(e))
+        {
             efeature_[e] = true;
+            n_edges++;
+        }
+    return n_edges;
 }
 
-//-----------------------------------------------------------------------------
-
-void SurfaceFeatures::detect_angle(Scalar angle)
+size_t SurfaceFeatures::detect_angle(Scalar angle)
 {
     const Scalar feature_cosine = cos(angle / 180.0 * M_PI);
-
+    size_t n_edges = 0;
     for (auto e : mesh_.edges())
     {
         if (!mesh_.is_boundary(e))
@@ -67,11 +56,11 @@ void SurfaceFeatures::detect_angle(Scalar angle)
                 efeature_[e] = true;
                 vfeature_[mesh_.vertex(e, 0)] = true;
                 vfeature_[mesh_.vertex(e, 1)] = true;
+                n_edges++;
             }
         }
     }
+    return n_edges;
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

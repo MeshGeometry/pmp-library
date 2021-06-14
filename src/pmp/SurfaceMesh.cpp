@@ -1,23 +1,14 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-// Copyright (C) 2001-2005 by Computer Graphics Group, RWTH Aachen
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
+// Copyright 2001-2005 by Computer Graphics Group, RWTH Aachen
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/SurfaceMesh.h>
-#include <pmp/SurfaceMeshIO.h>
+#include "pmp/SurfaceMesh.h"
 
 #include <cmath>
 
-//== NAMESPACE ================================================================
+#include "pmp/SurfaceMeshIO.h"
 
 namespace pmp {
-
-//== IMPLEMENTATION ===========================================================
 
 SurfaceMesh::SurfaceMesh()
 {
@@ -40,11 +31,7 @@ SurfaceMesh::SurfaceMesh()
     has_garbage_ = false;
 }
 
-//-----------------------------------------------------------------------------
-
 SurfaceMesh::~SurfaceMesh() = default;
-
-//-----------------------------------------------------------------------------
 
 SurfaceMesh& SurfaceMesh::operator=(const SurfaceMesh& rhs)
 {
@@ -77,8 +64,6 @@ SurfaceMesh& SurfaceMesh::operator=(const SurfaceMesh& rhs)
 
     return *this;
 }
-
-//-----------------------------------------------------------------------------
 
 SurfaceMesh& SurfaceMesh::assign(const SurfaceMesh& rhs)
 {
@@ -128,23 +113,17 @@ SurfaceMesh& SurfaceMesh::assign(const SurfaceMesh& rhs)
     return *this;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMesh::read(const std::string& filename, const IOFlags& flags)
+void SurfaceMesh::read(const std::string& filename, const IOFlags& flags)
 {
     SurfaceMeshIO reader(filename, flags);
-    return reader.read(*this);
+    reader.read(*this);
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMesh::write(const std::string& filename, const IOFlags& flags) const
+void SurfaceMesh::write(const std::string& filename, const IOFlags& flags) const
 {
     SurfaceMeshIO writer(filename, flags);
-    return writer.write(*this);
+    writer.write(*this);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::clear()
 {
@@ -175,8 +154,6 @@ void SurfaceMesh::clear()
     has_garbage_ = false;
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::free_memory()
 {
     vprops_.free_memory();
@@ -186,8 +163,6 @@ void SurfaceMesh::free_memory()
     fprops_.free_memory();
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::reserve(size_t nvertices, size_t nedges, size_t nfaces)
 {
     oprops_.reserve(1);
@@ -196,8 +171,6 @@ void SurfaceMesh::reserve(size_t nvertices, size_t nedges, size_t nfaces)
     eprops_.reserve(nedges);
     fprops_.reserve(nfaces);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::property_stats() const
 {
@@ -224,8 +197,6 @@ void SurfaceMesh::property_stats() const
         std::cout << "\t" << prop << std::endl;
 }
 
-//-----------------------------------------------------------------------------
-
 Halfedge SurfaceMesh::find_halfedge(Vertex start, Vertex end) const
 {
     assert(is_valid(start) && is_valid(end));
@@ -246,15 +217,11 @@ Halfedge SurfaceMesh::find_halfedge(Vertex start, Vertex end) const
     return Halfedge();
 }
 
-//-----------------------------------------------------------------------------
-
 Edge SurfaceMesh::find_edge(Vertex a, Vertex b) const
 {
     Halfedge h = find_halfedge(a, b);
     return h.is_valid() ? edge(h) : Edge();
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::adjust_outgoing_halfedge(Vertex v)
 {
@@ -275,8 +242,6 @@ void SurfaceMesh::adjust_outgoing_halfedge(Vertex v)
     }
 }
 
-//-----------------------------------------------------------------------------
-
 Vertex SurfaceMesh::add_vertex(const Point& p)
 {
     Vertex v = new_vertex();
@@ -284,8 +249,6 @@ Vertex SurfaceMesh::add_vertex(const Point& p)
         vpoint_[v] = p;
     return v;
 }
-
-//-----------------------------------------------------------------------------
 
 Face SurfaceMesh::add_triangle(Vertex v0, Vertex v1, Vertex v2)
 {
@@ -295,8 +258,6 @@ Face SurfaceMesh::add_triangle(Vertex v0, Vertex v1, Vertex v2)
     add_face_vertices_[2] = v2;
     return add_face(add_face_vertices_);
 }
-
-//-----------------------------------------------------------------------------
 
 Face SurfaceMesh::add_quad(Vertex v0, Vertex v1, Vertex v2, Vertex v3)
 {
@@ -308,8 +269,6 @@ Face SurfaceMesh::add_quad(Vertex v0, Vertex v1, Vertex v2, Vertex v3)
     return add_face(add_face_vertices_);
 }
 
-//-----------------------------------------------------------------------------
-
 Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
 {
     const size_t n(vertices.size());
@@ -317,85 +276,85 @@ Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
 
     Vertex v;
     size_t i, ii, id;
-    Halfedge innerNext, innerPrev, outerNext, outerPrev, boundaryNext,
-        boundaryPrev, patchStart, patchEnd;
+    Halfedge inner_next, inner_prev, outer_next, outer_prev, boundary_next,
+        boundary_prev, patch_start, patch_end;
 
     // use global arrays to avoid new/delete of local arrays!!!
     std::vector<Halfedge>& halfedges = add_face_halfedges_;
-    std::vector<bool>& isNew = add_face_is_new_;
-    std::vector<bool>& needsAdjust = add_face_needs_adjust_;
-    NextCache& nextCache = add_face_next_cache_;
+    std::vector<bool>& is_new = add_face_is_new_;
+    std::vector<bool>& needs_adjust = add_face_needs_adjust_;
+    NextCache& next_cache = add_face_next_cache_;
     halfedges.clear();
     halfedges.resize(n);
-    isNew.clear();
-    isNew.resize(n);
-    needsAdjust.clear();
-    needsAdjust.resize(n, false);
-    nextCache.clear();
-    nextCache.reserve(3 * n);
+    is_new.clear();
+    is_new.resize(n);
+    needs_adjust.clear();
+    needs_adjust.resize(n, false);
+    next_cache.clear();
+    next_cache.reserve(3 * n);
 
     // test for topological errors
     for (i = 0, ii = 1; i < n; ++i, ++ii, ii %= n)
     {
         if (!is_boundary(vertices[i]))
         {
-            std::cerr << "SurfaceMesh::add_face: complex vertex\n";
-            return Face();
+            auto what = "SurfaceMesh::add_face: Complex vertex.";
+            throw TopologyException(what);
         }
 
         halfedges[i] = find_halfedge(vertices[i], vertices[ii]);
-        isNew[i] = !halfedges[i].is_valid();
+        is_new[i] = !halfedges[i].is_valid();
 
-        if (!isNew[i] && !is_boundary(halfedges[i]))
+        if (!is_new[i] && !is_boundary(halfedges[i]))
         {
-            std::cerr << "SurfaceMesh::add_face: complex edge\n";
-            return Face();
+            auto what = "SurfaceMesh::add_face: Complex edge.";
+            throw TopologyException(what);
         }
     }
 
     // re-link patches if necessary
     for (i = 0, ii = 1; i < n; ++i, ++ii, ii %= n)
     {
-        if (!isNew[i] && !isNew[ii])
+        if (!is_new[i] && !is_new[ii])
         {
-            innerPrev = halfedges[i];
-            innerNext = halfedges[ii];
+            inner_prev = halfedges[i];
+            inner_next = halfedges[ii];
 
-            if (next_halfedge(innerPrev) != innerNext)
+            if (next_halfedge(inner_prev) != inner_next)
             {
                 // here comes the ugly part... we have to relink a whole patch
 
                 // search a free gap
                 // free gap will be between boundaryPrev and boundaryNext
-                outerPrev = opposite_halfedge(innerNext);
-                outerNext = opposite_halfedge(innerPrev);
-                boundaryPrev = outerPrev;
+                outer_prev = opposite_halfedge(inner_next);
+                outer_next = opposite_halfedge(inner_prev);
+                boundary_prev = outer_prev;
                 do
                 {
-                    boundaryPrev =
-                        opposite_halfedge(next_halfedge(boundaryPrev));
-                } while (!is_boundary(boundaryPrev) ||
-                         boundaryPrev == innerPrev);
-                boundaryNext = next_halfedge(boundaryPrev);
-                assert(is_boundary(boundaryPrev));
-                assert(is_boundary(boundaryNext));
+                    boundary_prev =
+                        opposite_halfedge(next_halfedge(boundary_prev));
+                } while (!is_boundary(boundary_prev) ||
+                         boundary_prev == inner_prev);
+                boundary_next = next_halfedge(boundary_prev);
+                assert(is_boundary(boundary_prev));
+                assert(is_boundary(boundary_next));
 
                 // ok ?
-                if (boundaryNext == innerNext)
+                if (boundary_next == inner_next)
                 {
-                    std::cerr
-                        << "SurfaceMeshT::add_face: patch re-linking failed\n";
-                    return Face();
+                    auto what =
+                        "SurfaceMesh::add_face: Patch re-linking failed.";
+                    throw TopologyException(what);
                 }
 
                 // other halfedges' handles
-                patchStart = next_halfedge(innerPrev);
-                patchEnd = prev_halfedge(innerNext);
+                patch_start = next_halfedge(inner_prev);
+                patch_end = prev_halfedge(inner_next);
 
                 // relink
-                nextCache.emplace_back(boundaryPrev, patchStart);
-                nextCache.emplace_back(patchEnd, boundaryNext);
-                nextCache.emplace_back(innerPrev, innerNext);
+                next_cache.emplace_back(boundary_prev, patch_start);
+                next_cache.emplace_back(patch_end, boundary_next);
+                next_cache.emplace_back(inner_prev, inner_next);
             }
         }
     }
@@ -403,7 +362,7 @@ Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
     // create missing edges
     for (i = 0, ii = 1; i < n; ++i, ++ii, ii %= n)
     {
-        if (isNew[i])
+        if (is_new[i])
         {
             halfedges[i] = new_edge(vertices[i], vertices[ii]);
         }
@@ -417,63 +376,63 @@ Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
     for (i = 0, ii = 1; i < n; ++i, ++ii, ii %= n)
     {
         v = vertices[ii];
-        innerPrev = halfedges[i];
-        innerNext = halfedges[ii];
+        inner_prev = halfedges[i];
+        inner_next = halfedges[ii];
 
         id = 0;
-        if (isNew[i])
+        if (is_new[i])
             id |= 1;
-        if (isNew[ii])
+        if (is_new[ii])
             id |= 2;
 
         if (id)
         {
-            outerPrev = opposite_halfedge(innerNext);
-            outerNext = opposite_halfedge(innerPrev);
+            outer_prev = opposite_halfedge(inner_next);
+            outer_next = opposite_halfedge(inner_prev);
 
             // set outer links
             switch (id)
             {
                 case 1: // prev is new, next is old
-                    boundaryPrev = prev_halfedge(innerNext);
-                    nextCache.emplace_back(boundaryPrev, outerNext);
-                    set_halfedge(v, outerNext);
+                    boundary_prev = prev_halfedge(inner_next);
+                    next_cache.emplace_back(boundary_prev, outer_next);
+                    set_halfedge(v, outer_next);
                     break;
 
                 case 2: // next is new, prev is old
-                    boundaryNext = next_halfedge(innerPrev);
-                    nextCache.emplace_back(outerPrev, boundaryNext);
-                    set_halfedge(v, boundaryNext);
+                    boundary_next = next_halfedge(inner_prev);
+                    next_cache.emplace_back(outer_prev, boundary_next);
+                    set_halfedge(v, boundary_next);
                     break;
 
                 case 3: // both are new
                     if (!halfedge(v).is_valid())
                     {
-                        set_halfedge(v, outerNext);
-                        nextCache.emplace_back(outerPrev, outerNext);
+                        set_halfedge(v, outer_next);
+                        next_cache.emplace_back(outer_prev, outer_next);
                     }
                     else
                     {
-                        boundaryNext = halfedge(v);
-                        boundaryPrev = prev_halfedge(boundaryNext);
-                        nextCache.emplace_back(boundaryPrev, outerNext);
-                        nextCache.emplace_back(outerPrev, boundaryNext);
+                        boundary_next = halfedge(v);
+                        boundary_prev = prev_halfedge(boundary_next);
+                        next_cache.emplace_back(boundary_prev, outer_next);
+                        next_cache.emplace_back(outer_prev, boundary_next);
                     }
                     break;
             }
 
             // set inner link
-            nextCache.emplace_back(innerPrev, innerNext);
+            next_cache.emplace_back(inner_prev, inner_next);
         }
         else
-            needsAdjust[ii] = (halfedge(v) == innerNext);
+            needs_adjust[ii] = (halfedge(v) == inner_next);
 
         // set face handle
         set_face(halfedges[i], f);
     }
 
     // process next halfedge cache
-    NextCache::const_iterator ncIt(nextCache.begin()), ncEnd(nextCache.end());
+    NextCache::const_iterator ncIt(next_cache.begin()), ncEnd(next_cache.end());
     for (; ncIt != ncEnd; ++ncIt)
     {
         set_next_halfedge(ncIt->first, ncIt->second);
@@ -482,7 +441,7 @@ Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
     // adjust vertices' halfedge handle
     for (i = 0; i < n; ++i)
     {
-        if (needsAdjust[i])
+        if (needs_adjust[i])
         {
             adjust_outgoing_halfedge(vertices[i]);
         }
@@ -490,8 +449,6 @@ Face SurfaceMesh::add_face(const std::vector<Vertex>& vertices)
 
     return f;
 }
-
-//-----------------------------------------------------------------------------
 
 size_t SurfaceMesh::valence(Vertex v) const
 {
@@ -506,8 +463,6 @@ size_t SurfaceMesh::valence(Vertex v) const
     return count;
 }
 
-//-----------------------------------------------------------------------------
-
 size_t SurfaceMesh::valence(Face f) const
 {
     size_t count(0);
@@ -521,8 +476,6 @@ size_t SurfaceMesh::valence(Face f) const
     return count;
 }
 
-//-----------------------------------------------------------------------------
-
 bool SurfaceMesh::is_triangle_mesh() const
 {
     for (auto f : faces())
@@ -531,8 +484,6 @@ bool SurfaceMesh::is_triangle_mesh() const
 
     return true;
 }
-
-//-----------------------------------------------------------------------------
 
 bool SurfaceMesh::is_quad_mesh() const
 {
@@ -543,8 +494,6 @@ bool SurfaceMesh::is_quad_mesh() const
     return true;
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::triangulate()
 {
     // The iterators will stay valid, even though new faces are added, because
@@ -554,14 +503,12 @@ void SurfaceMesh::triangulate()
         triangulate(*fit);
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::triangulate(Face f)
 {
-    // Split an arbitrary face into triangles by connecting each vertex of \c f
-    // after its second to \c v .\c f will remain valid (it will become one of
-    // the triangles). The halfedge handles of the new triangles will point to
-    // the old halfedges.
+    // Split an arbitrary face into triangles by connecting each vertex of face
+    // f after its second to vertex v. Face f will remain valid (it will become
+    // one of the triangles). The halfedge handles of the new triangles will
+    // point to the old halfedges.
 
     Halfedge baseH = halfedge(f);
     Vertex startV = from_vertex(baseH);
@@ -595,12 +542,10 @@ void SurfaceMesh::triangulate(Face f)
     set_face(baseH, f);
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::split(Face f, Vertex v)
 {
-    // Split an arbitrary face into triangles by connecting each vertex of \c f
-    // to \c v . \c f will remain valid (it will become one of the
+    // Split an arbitrary face into triangles by connecting each vertex of face
+    // f to vertex v . Face f will remain valid (it will become one of the
     // triangles). The halfedge handles of the new triangles will point to the
     // old halfedges.
 
@@ -643,8 +588,6 @@ void SurfaceMesh::split(Face f, Vertex v)
 
     set_halfedge(v, hold);
 }
-
-//-----------------------------------------------------------------------------
 
 Halfedge SurfaceMesh::split(Edge e, Vertex v)
 {
@@ -742,8 +685,6 @@ Halfedge SurfaceMesh::split(Edge e, Vertex v)
     return t1;
 }
 
-//-----------------------------------------------------------------------------
-
 Halfedge SurfaceMesh::insert_vertex(Halfedge h0, Vertex v)
 {
     // before:
@@ -797,8 +738,6 @@ Halfedge SurfaceMesh::insert_vertex(Halfedge h0, Vertex v)
     return o1;
 }
 
-//-----------------------------------------------------------------------------
-
 Halfedge SurfaceMesh::insert_edge(Halfedge h0, Halfedge h1)
 {
     assert(face(h0) == face(h1));
@@ -835,8 +774,6 @@ Halfedge SurfaceMesh::insert_edge(Halfedge h0, Halfedge h1)
     return h4;
 }
 
-//-----------------------------------------------------------------------------
-
 bool SurfaceMesh::is_flip_ok(Edge e) const
 {
     // boundary edges cannot be flipped
@@ -858,8 +795,6 @@ bool SurfaceMesh::is_flip_ok(Edge e) const
 
     return true;
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::flip(Edge e)
 {
@@ -906,8 +841,6 @@ void SurfaceMesh::flip(Edge e)
     if (halfedge(vb0) == a0)
         set_halfedge(vb0, b1);
 }
-
-//-----------------------------------------------------------------------------
 
 bool SurfaceMesh::is_collapse_ok(Halfedge v0v1)
 {
@@ -963,7 +896,79 @@ bool SurfaceMesh::is_collapse_ok(Halfedge v0v1)
     return true;
 }
 
-//-----------------------------------------------------------------------------
+bool SurfaceMesh::is_removal_ok(Edge e)
+{
+    Halfedge h0 = halfedge(e, 0);
+    Halfedge h1 = halfedge(e, 1);
+    Vertex v0 = to_vertex(h0);
+    Vertex v1 = to_vertex(h1);
+    Face f0 = face(h0);
+    Face f1 = face(h1);
+
+    // boundary?
+    if (!f0.is_valid() || !f1.is_valid())
+        return false;
+
+    // same face?
+    if (f0 == f1)
+        return false;
+
+    // are the two faces connect through another vertex?
+    for (auto v : vertices(f0))
+        if (v != v0 && v != v1)
+            for (auto f : faces(v))
+                if (f == f1)
+                    return false;
+
+    return true;
+}
+
+bool SurfaceMesh::remove_edge(Edge e)
+{
+    if (!is_removal_ok(e))
+        return false;
+
+    Halfedge h0 = halfedge(e, 0);
+    Halfedge h1 = halfedge(e, 1);
+
+    Vertex v0 = to_vertex(h0);
+    Vertex v1 = to_vertex(h1);
+
+    Face f0 = face(h0);
+    Face f1 = face(h1);
+
+    Halfedge h0_prev = prev_halfedge(h0);
+    Halfedge h0_next = next_halfedge(h0);
+    Halfedge h1_prev = prev_halfedge(h1);
+    Halfedge h1_next = next_halfedge(h1);
+
+    // adjust vertex->halfedge
+    if (halfedge(v0) == h1)
+        set_halfedge(v0, h0_next);
+    if (halfedge(v1) == h0)
+        set_halfedge(v1, h1_next);
+
+    // adjust halfedge->face
+    for (auto h : halfedges(f0))
+        set_face(h, f1);
+
+    // adjust halfedge->halfedge
+    set_next_halfedge(h1_prev, h0_next);
+    set_next_halfedge(h0_prev, h1_next);
+
+    // adjust face->halfedge
+    if (halfedge(f1) == h1)
+        set_halfedge(f1, h1_next);
+
+    // delete face f0 and edge e
+    fdeleted_[f0] = true;
+    ++deleted_faces_;
+    edeleted_[e] = true;
+    ++deleted_edges_;
+    has_garbage_ = true;
+
+    return true;
+}
 
 void SurfaceMesh::collapse(Halfedge h)
 {
@@ -973,18 +978,16 @@ void SurfaceMesh::collapse(Halfedge h)
     Halfedge o1 = next_halfedge(o0);
 
     // remove edge
-    remove_edge(h0);
+    remove_edge_helper(h0);
 
     // remove loops
     if (next_halfedge(next_halfedge(h1)) == h1)
-        remove_loop(h1);
+        remove_loop_helper(h1);
     if (next_halfedge(next_halfedge(o1)) == o1)
-        remove_loop(o1);
+        remove_loop_helper(o1);
 }
 
-//-----------------------------------------------------------------------------
-
-void SurfaceMesh::remove_edge(Halfedge h)
+void SurfaceMesh::remove_edge_helper(Halfedge h)
 {
     Halfedge hn = next_halfedge(h);
     Halfedge hp = prev_halfedge(h);
@@ -1031,9 +1034,7 @@ void SurfaceMesh::remove_edge(Halfedge h)
     has_garbage_ = true;
 }
 
-//-----------------------------------------------------------------------------
-
-void SurfaceMesh::remove_loop(Halfedge h)
+void SurfaceMesh::remove_loop_helper(Halfedge h)
 {
     Halfedge h0 = h;
     Halfedge h1 = next_halfedge(h0);
@@ -1078,8 +1079,6 @@ void SurfaceMesh::remove_loop(Halfedge h)
     has_garbage_ = true;
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::delete_vertex(Vertex v)
 {
     if (is_deleted(v))
@@ -1105,8 +1104,6 @@ void SurfaceMesh::delete_vertex(Vertex v)
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceMesh::delete_edge(Edge e)
 {
     if (is_deleted(e))
@@ -1120,8 +1117,6 @@ void SurfaceMesh::delete_edge(Edge e)
     if (f1.is_valid())
         delete_face(f1);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::delete_face(Face f)
 {
@@ -1232,8 +1227,6 @@ void SurfaceMesh::delete_face(Face f)
 
     has_garbage_ = true;
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceMesh::garbage_collection()
 {
@@ -1376,6 +1369,4 @@ void SurfaceMesh::garbage_collection()
     has_garbage_ = false;
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

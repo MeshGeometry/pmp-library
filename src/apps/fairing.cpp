@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/visualization/MeshViewer.h>
 #include <pmp/algorithms/SurfaceCurvature.h>
@@ -13,8 +7,6 @@
 #include <imgui.h>
 
 using namespace pmp;
-
-//=============================================================================
 
 class Viewer : public MeshViewer
 {
@@ -25,14 +17,10 @@ protected:
     virtual void process_imgui();
 };
 
-//=============================================================================
-
 Viewer::Viewer(const char* title, int width, int height)
     : MeshViewer(title, width, height)
 {
 }
-
-//=============================================================================
 
 void Viewer::process_imgui()
 {
@@ -62,25 +50,47 @@ void Viewer::process_imgui()
         if (ImGui::Button("Minimize Area"))
         {
             SurfaceFairing fair(mesh_);
-            fair.minimize_area();
+            try
+            {
+                fair.minimize_area();
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
         if (ImGui::Button("Minimize Curvature"))
         {
             SurfaceFairing fair(mesh_);
-            fair.minimize_curvature();
+            try
+            {
+                fair.minimize_curvature();
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
         if (ImGui::Button("Minimize Curvature Variation"))
         {
             SurfaceFairing fair(mesh_);
-            fair.fair(3);
+            try
+            {
+                fair.fair(3);
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
     }
 }
-
-//=============================================================================
 
 int main(int argc, char** argv)
 {
@@ -95,5 +105,3 @@ int main(int argc, char** argv)
     return window.run();
 #endif
 }
-
-//=============================================================================

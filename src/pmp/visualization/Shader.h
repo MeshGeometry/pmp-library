@@ -1,29 +1,17 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
+
 #pragma once
-//=============================================================================
 
-#include <pmp/visualization/GL.h>
-#include <pmp/MatVec.h>
+#include <vector>
 
-//=============================================================================
+#include "pmp/visualization/GL.h"
+#include "pmp/MatVec.h"
 
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup visualization visualization
-//! @{
-
-//=============================================================================
-
 //! shader class for easy handling of the shader
+//! \ingroup visualization
 class Shader
 {
 public:
@@ -42,9 +30,15 @@ public:
     bool source(const char* vshader, const char* fshader);
 
     //! load (from file), compile, and link vertex and fragment shader,
+    //! and optional geometry and tessellation shaders.
+    //! unused shaders should be NULL.
     //! \param vfile string with the adress to the vertex shader
     //! \param ffile string with the adress to the fragment shader
-    bool load(const char* vfile, const char* ffile);
+    //! \param gfile filename of geometry shader
+    //! \param tcfile filename of tessellation control shader
+    //! \param tefile filename of tessellation evaluation shader
+    bool load(const char* vfile, const char* ffile, const char* gfile = nullptr,
+              const char* tcfile = nullptr, const char* tefile = nullptr);
 
     //! enable/bind this shader program
     void use();
@@ -78,8 +72,8 @@ public:
     //! upload mat3 uniform
     //! \param name string of the uniform name
     //! \param mat the value for the uniform
-
     void set_uniform(const char* name, const mat3& mat);
+
     //! upload mat4 uniform
     //! \param name string of the uniform name
     //! \param mat the value for the uniform
@@ -105,19 +99,11 @@ private:
     //! relink: use this after setting/changing attrib location
     bool link();
 
-private:
     //! id of the linked shader program
     GLint pid_;
 
     //! id of the vertex shader
-    GLint vid_;
-
-    //! id of the fragmend shader
-    GLint fid_;
+    std::vector<GLint> shaders_;
 };
 
-//=============================================================================
-//! @}
-//=============================================================================
 } // namespace pmp
-//=============================================================================

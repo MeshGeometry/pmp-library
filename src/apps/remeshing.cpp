@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/visualization/MeshViewer.h>
 #include <pmp/algorithms/SurfaceFeatures.h>
@@ -13,8 +7,6 @@
 #include <imgui.h>
 
 using namespace pmp;
-
-//=============================================================================
 
 class Viewer : public MeshViewer
 {
@@ -25,15 +17,12 @@ protected:
     virtual void process_imgui();
 };
 
-//=============================================================================
-
 Viewer::Viewer(const char* title, int width, int height)
     : MeshViewer(title, width, height)
 {
     set_draw_mode("Hidden Line");
+    crease_angle_ = 0.0;
 }
-
-//=============================================================================
 
 void Viewer::process_imgui()
 {
@@ -67,7 +56,15 @@ void Viewer::process_imgui()
                 l += distance(mesh_.position(mesh_.vertex(eit, 0)),
                               mesh_.position(mesh_.vertex(eit, 1)));
             l /= (Scalar)mesh_.n_edges();
-            SurfaceRemeshing(mesh_).uniform_remeshing(l);
+            try
+            {
+                SurfaceRemeshing(mesh_).uniform_remeshing(l);
+            }
+            catch (const InvalidInputException& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
 
@@ -76,16 +73,22 @@ void Viewer::process_imgui()
         if (ImGui::Button("Adaptive"))
         {
             auto bb = mesh_.bounds().size();
-            SurfaceRemeshing(mesh_).adaptive_remeshing(
-                0.001 * bb,  // min length
-                0.100 * bb,  // max length
-                0.001 * bb); // approx. error
+            try
+            {
+                SurfaceRemeshing(mesh_).adaptive_remeshing(
+                    0.0010 * bb,  // min length
+                    0.0500 * bb,  // max length
+                    0.0005 * bb); // approx. error
+            }
+            catch (const InvalidInputException& e)
+            {
+                std::cerr << e.what() << std::endl;
+                return;
+            }
             update_mesh();
         }
     }
 }
-
-//=============================================================================
 
 int main(int argc, char** argv)
 {
@@ -100,5 +103,3 @@ int main(int argc, char** argv)
     return window.run();
 #endif
 }
-
-//=============================================================================

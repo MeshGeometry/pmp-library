@@ -1,26 +1,14 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
+
 #pragma once
-//=============================================================================
 
 #include <vector>
 
-//=============================================================================
-
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup algorithms algorithms
-//!@{
-
-//! A class implementing a heap.
+//! \brief A class implementing a heap.
+//! \ingroup algorithms
 template <class HeapEntry, class HeapInterface>
 class Heap : private std::vector<HeapEntry>
 {
@@ -30,7 +18,7 @@ public:
     //! Constructor
     Heap() : HeapVector() {}
 
-    //! Construct with a given \c HeapInterface.
+    //! Construct with a given \p HeapInterface.
     Heap(const HeapInterface& i) : HeapVector(), interface_(i) {}
 
     //! Destructor.
@@ -122,7 +110,8 @@ public:
         upheap(pos);
     }
 
-    //! check heap condition
+    //! \brief Check heap condition.
+    //! \return \c true if heap condition is satisfied, \c false if not.
     bool check()
     {
         bool ok(true);
@@ -132,13 +121,11 @@ public:
             if (((j = left(i)) < size()) &&
                 interface_.greater(entry(i), entry(j)))
             {
-                std::cerr << "Heap condition violated\n";
                 ok = false;
             }
             if (((j = right(i)) < size()) &&
                 interface_.greater(entry(i), entry(j)))
             {
-                std::cerr << "Heap condition violated\n";
                 ok = false;
             }
         }
@@ -219,8 +206,4 @@ private:
     HeapInterface interface_;
 };
 
-//=============================================================================
-//!@}
-//=============================================================================
 } // namespace pmp
-//=============================================================================

@@ -1,33 +1,27 @@
-//=============================================================================
-// Copyright (C) 2017-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2017-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include "gtest/gtest.h"
 
 #include <pmp/algorithms/SurfaceGeodesic.h>
+#include <pmp/algorithms/SurfaceFactory.h>
 
 using namespace pmp;
 
 TEST(SurfaceGeodesicTest, geodesic)
 {
-    // read mesh for unit sphere
-    SurfaceMesh mesh;
-    EXPECT_TRUE(mesh.read("pmp-data/off/sphere.off"));
+    // generate unit sphere mesh
+    SurfaceMesh mesh = SurfaceFactory::icosphere(5);
 
     // compute geodesic distance from first vertex
     SurfaceGeodesic geodist(mesh);
-    geodist.compute(std::vector<Vertex>{ Vertex(0) });
+    geodist.compute(std::vector<Vertex>{Vertex(0)});
 
     // find maximum geodesic distance
     Scalar d(0);
-    for (auto v: mesh.vertices())
+    for (auto v : mesh.vertices())
         d = std::max(d, geodist(v));
-    EXPECT_FLOAT_EQ(d, 3.1348989);
+    EXPECT_FLOAT_EQ(d, 3.1355045);
 
     // map distances to texture coordinates
     geodist.distance_to_texture_coordinates();
@@ -39,7 +33,7 @@ TEST(SurfaceGeodesicTest, geodesic_symmetry)
 {
     // read irregular mesh (to have virtual edges)
     SurfaceMesh mesh;
-    EXPECT_TRUE(mesh.read("pmp-data/off/bunny_adaptive.off"));
+    mesh.read("pmp-data/off/bunny_adaptive.off");
 
     SurfaceGeodesic geodist(mesh);
     Vertex v0, v1;
@@ -47,11 +41,11 @@ TEST(SurfaceGeodesicTest, geodesic_symmetry)
 
     // grow from first vector
     v0 = Vertex(0);
-    geodist.compute( std::vector<Vertex>{v0} );
+    geodist.compute(std::vector<Vertex>{v0});
 
     // find maximum geodesic distance
-    d0=0;
-    for (auto v: mesh.vertices())
+    d0 = 0;
+    for (auto v : mesh.vertices())
     {
         if (geodist(v) > d0)
         {
@@ -61,38 +55,33 @@ TEST(SurfaceGeodesicTest, geodesic_symmetry)
     }
 
     // grow back from max-dist vertex to vertex 0
-    geodist.compute( std::vector<Vertex>{v1} );
+    geodist.compute(std::vector<Vertex>{v1});
     d1 = geodist(v0);
 
     // expect both distance to be the same
-    Scalar err = fabs(d0-d1) / (0.5*(d0+d1));
+    Scalar err = fabs(d0 - d1) / (0.5 * (d0 + d1));
     EXPECT_LT(err, 0.001);
 }
 
 TEST(SurfaceGeodesicTest, geodesic_maxnum)
 {
-    // read mesh for unit sphere
-    SurfaceMesh mesh;
-    EXPECT_TRUE(mesh.read("pmp-data/off/sphere.off"));
+    // generate unit sphere mesh
+    SurfaceMesh mesh = SurfaceFactory::icosphere(3);
 
     // compute geodesic distance from first vertex
     unsigned int maxnum = 42;
     unsigned int num;
     SurfaceGeodesic geodist(mesh);
     std::vector<Vertex> neighbors;
-    num = geodist.compute(std::vector<Vertex>{ Vertex(0) }, FLT_MAX, maxnum, &neighbors);
-    EXPECT_TRUE(num == maxnum);
-    EXPECT_TRUE(neighbors.size() == maxnum);
-
-    // test for another seed
-    num = geodist.compute(std::vector<Vertex>{ Vertex(12345) }, FLT_MAX, maxnum, &neighbors);
+    num =
+        geodist.compute(std::vector<Vertex>{Vertex(0)},
+                        std::numeric_limits<Scalar>::max(), maxnum, &neighbors);
     EXPECT_TRUE(num == maxnum);
     EXPECT_TRUE(neighbors.size() == maxnum);
 
     // test that neighbor array is properly sorted
-    for (unsigned int i=0; i<neighbors.size()-1; ++i)
+    for (unsigned int i = 0; i < neighbors.size() - 1; ++i)
     {
-        EXPECT_TRUE( geodist(neighbors[i]) <= geodist(neighbors[i+1]) );
+        EXPECT_TRUE(geodist(neighbors[i]) <= geodist(neighbors[i + 1]));
     }
 }
-

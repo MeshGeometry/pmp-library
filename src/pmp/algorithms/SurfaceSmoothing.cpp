@@ -1,36 +1,23 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/algorithms/SurfaceSmoothing.h>
-#include <pmp/algorithms/DifferentialGeometry.h>
+#include "pmp/algorithms/SurfaceSmoothing.h"
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
-//=============================================================================
+#include "pmp/algorithms/DifferentialGeometry.h"
 
 namespace pmp {
 
-//=============================================================================
-
 using SparseMatrix = Eigen::SparseMatrix<double>;
 using Triplet = Eigen::Triplet<double>;
-
-//=============================================================================
 
 SurfaceSmoothing::SurfaceSmoothing(SurfaceMesh& mesh) : mesh_(mesh)
 {
     how_many_edge_weights_ = 0;
     how_many_vertex_weights_ = 0;
 }
-
-//-----------------------------------------------------------------------------
 
 SurfaceSmoothing::~SurfaceSmoothing()
 {
@@ -42,8 +29,6 @@ SurfaceSmoothing::~SurfaceSmoothing()
     if (eweight)
         mesh_.remove_edge_property(eweight);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceSmoothing::compute_edge_weights(bool use_uniform_laplace)
 {
@@ -63,8 +48,6 @@ void SurfaceSmoothing::compute_edge_weights(bool use_uniform_laplace)
     how_many_edge_weights_ = mesh_.n_edges();
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceSmoothing::compute_vertex_weights(bool use_uniform_laplace)
 {
     auto vweight = mesh_.vertex_property<Scalar>("v:area");
@@ -82,8 +65,6 @@ void SurfaceSmoothing::compute_vertex_weights(bool use_uniform_laplace)
 
     how_many_vertex_weights_ = mesh_.n_vertices();
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceSmoothing::explicit_smoothing(unsigned int iters,
                                           bool use_uniform_laplace)
@@ -139,8 +120,6 @@ void SurfaceSmoothing::explicit_smoothing(unsigned int iters,
     mesh_.remove_vertex_property(laplace);
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
                                           bool use_uniform_laplace,
                                           bool rescale)
@@ -157,8 +136,13 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
     compute_vertex_weights(use_uniform_laplace);
 
     // store center and area
-    Point center_before = centroid(mesh_);
-    Scalar area_before = surface_area(mesh_);
+    Point center_before(0, 0, 0);
+    Scalar area_before(0);
+    if (rescale)
+    {
+        center_before = centroid(mesh_);
+        area_before = surface_area(mesh_);
+    }
 
     // properties
     auto points = mesh_.get_vertex_property<Point>("v:point");
@@ -189,6 +173,7 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
     std::vector<Triplet> triplets;
 
     // setup matrix A and rhs B
+    dvec3 b;
     double ww;
     Vertex v, vv;
     Edge e;
@@ -197,9 +182,7 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
         v = free_vertices[i];
 
         // rhs row
-        B(i, 0) = points[v][0] / vweight[v];
-        B(i, 1) = points[v][1] / vweight[v];
-        B(i, 2) = points[v][2] / vweight[v];
+        b = static_cast<dvec3>(points[v]) / vweight[v];
 
         // lhs row
         ww = 0.0;
@@ -212,15 +195,15 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
             // fixed boundary vertex -> right hand side
             if (mesh_.is_boundary(vv))
             {
-                B(i, 0) -= -timestep * eweight[e] * points[vv][0];
-                B(i, 1) -= -timestep * eweight[e] * points[vv][1];
-                B(i, 2) -= -timestep * eweight[e] * points[vv][2];
+                b -= -timestep * eweight[e] * static_cast<dvec3>(points[vv]);
             }
             // free interior vertex -> matrix
             else
             {
                 triplets.emplace_back(i, idx[vv], -timestep * eweight[e]);
             }
+
+            B.row(i) = (Eigen::Vector3d)b;
         }
 
         // center vertex -> matrix
@@ -235,17 +218,17 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
     Eigen::MatrixXd X = solver.solve(B);
     if (solver.info() != Eigen::Success)
     {
-        std::cerr << "SurfaceSmoothing: Could not solve linear system\n";
+        // clean-up
+        mesh_.remove_vertex_property(idx);
+        auto what = "SurfaceSmoothing: Failed to solve linear system.";
+        throw SolverException(what);
     }
     else
     {
         // copy solution
         for (unsigned int i = 0; i < n; ++i)
         {
-            v = free_vertices[i];
-            points[v][0] = X(i, 0);
-            points[v][1] = X(i, 1);
-            points[v][2] = X(i, 2);
+            points[free_vertices[i]] = X.row(i);
         }
     }
 
@@ -268,6 +251,4 @@ void SurfaceSmoothing::implicit_smoothing(Scalar timestep,
     mesh_.remove_vertex_property(idx);
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

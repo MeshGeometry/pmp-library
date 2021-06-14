@@ -1,18 +1,13 @@
-//=============================================================================
-// Copyright (C) 2011-2017 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
+
 #pragma once
-//=============================================================================
 
-#include <pmp/MatVec.h>
-#include <cstdint> // for std::uint_least32_t
+#include <cstdint>
 
-//=============================================================================
+#include <stdexcept>
+
+#include "pmp/MatVec.h"
 
 //! \def PMP_ASSERT(x)
 //! Custom assert macro that allows to silence unused variable warnings with no
@@ -33,14 +28,10 @@
 //! A simple pretty-printing debug macro. Prints the expression and its value.
 #define PMP_SHOW(x) std::cerr << #x " = '" << x << "'" << std::endl;
 
-//=============================================================================
-
 //! The pmp-library namespace
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup core core
+//! \addtogroup core
 //! @{
 
 //! Scalar type
@@ -84,6 +75,48 @@ struct IOFlags
     bool use_halfedge_texcoords = false; //!< read / write halfedge texcoords
 };
 
+//! \brief Exception indicating invalid input passed to a function.
+//! \details This exception should be used to signal violation of a
+//! precondition, e.g., if an algorithm expects a pure triangle mesh but a
+//! general polygon mesh is passed instead.
+class InvalidInputException : public std::invalid_argument
+{
+public:
+    InvalidInputException(const std::string& what) : std::invalid_argument(what)
+    {
+    }
+};
+
+//! \brief Exception indicating failure so solve an equation system.
+class SolverException : public std::runtime_error
+{
+public:
+    SolverException(const std::string& what) : std::runtime_error(what) {}
+};
+
+//! \brief Exception indicating failure to allocate a new resource.
+//! \details This exception signals an error resulting from an attempt to exceed
+//! implementation-defined allocation limits.
+class AllocationException : public std::length_error
+{
+public:
+    AllocationException(const std::string& what) : std::length_error(what) {}
+};
+
+//! \brief Exception indicating a topological error has occurred.
+class TopologyException : public std::logic_error
+{
+public:
+    TopologyException(const std::string& what) : std::logic_error(what) {}
+};
+
+//! \brief Exception indicating an error occurred while performing IO.
+class IOException : public std::runtime_error
+{
+public:
+    IOException(const std::string& what) : std::runtime_error(what) {}
+};
+
 //! @}
 
 //! \defgroup core core
@@ -95,6 +128,4 @@ struct IOFlags
 //! \defgroup visualization visualization
 //! \brief Visualization tools using OpenGL.
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

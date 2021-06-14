@@ -1,34 +1,24 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
+
 #pragma once
-//=============================================================================
 
-#include <pmp/Types.h>
-#include <pmp/SurfaceMesh.h>
-
-//=============================================================================
+#include "pmp/Types.h"
+#include "pmp/SurfaceMesh.h"
 
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup algorithms algorithms
+//! \addtogroup algorithms
 //! @{
 
-//! clamp cotangent values as if angles are in [1, 179]
+//! clamp cotangent values as if angles are in [3, 177]
 inline double clamp_cot(const double v)
 {
     const double bound = 19.1; // 3 degrees
     return (v < -bound ? -bound : (v > bound ? bound : v));
 }
 
-//! clamp cosine values as if angles are in [1, 179]
+//! clamp cosine values as if angles are in [3, 177]
 inline double clamp_cos(const double v)
 {
     const double bound = 0.9986; // 3 degrees
@@ -68,12 +58,22 @@ Scalar triangle_area(const SurfaceMesh& mesh, Face f);
 //! surface area of the mesh (assumes triangular faces)
 Scalar surface_area(const SurfaceMesh& mesh);
 
+//! \brief Compute the volume of a mesh
+//! \details See \cite zhang_2002_efficient for details.
+//! \pre Input mesh needs to be a pure triangle mesh.
+//! \throw InvalidInputException if the input precondition is violated.
+Scalar volume(const SurfaceMesh& mesh);
+
 //! barycenter/centroid of a face
 Point centroid(const SurfaceMesh& mesh, Face f);
 
 //! barycenter/centroid of mesh, computed as area-weighted mean of vertices.
 //! assumes triangular faces.
 Point centroid(const SurfaceMesh& mesh);
+
+//! \brief Compute dual of a mesh.
+//! \warning Changes the mesh in place. All properties are cleared.
+void dual(SurfaceMesh& mesh);
 
 //! compute the cotangent weight for edge e
 double cotan_weight(const SurfaceMesh& mesh, Edge e);
@@ -102,11 +102,9 @@ struct VertexCurvature
 };
 
 //! compute min, max, mean, and Gaussian curvature for vertex v. this will not
-//! give realiable values for boundary vertices.
+//! give reliable values for boundary vertices.
 VertexCurvature vertex_curvature(const SurfaceMesh& mesh, Vertex v);
 
-//=============================================================================
 //! @}
-//=============================================================================
+
 } // namespace pmp
-//=============================================================================

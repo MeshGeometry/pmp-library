@@ -1,11 +1,5 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include "SurfaceMeshTest.h"
 
@@ -29,14 +23,14 @@ TEST_F(SurfaceMeshIOTest, poly_io)
     EXPECT_EQ(mesh.n_faces(), size_t(1));
 
     // check malformed file names
-    EXPECT_FALSE(mesh.write("testpolyly"));
+    EXPECT_THROW(mesh.write("testpolyly"), IOException);
 }
 
 TEST_F(SurfaceMeshIOTest, obj_io)
 {
     add_triangle();
     SurfaceNormals::compute_vertex_normals(mesh);
-    mesh.add_halfedge_property<TexCoord>("h:texcoord",TexCoord(0,0));
+    mesh.add_halfedge_property<TexCoord>("h:texcoord", TexCoord(0, 0));
     mesh.write("test.obj");
     mesh.clear();
     EXPECT_TRUE(mesh.is_empty());
@@ -49,8 +43,8 @@ TEST_F(SurfaceMeshIOTest, off_io)
 {
     add_triangle();
     SurfaceNormals::compute_vertex_normals(mesh);
-    mesh.add_vertex_property<TexCoord>("v:texcoord",TexCoord(0,0));
-    mesh.add_vertex_property<Color>("v:color",Color(0,0,0));
+    mesh.add_vertex_property<TexCoord>("v:texcoord", TexCoord(0, 0));
+    mesh.add_vertex_property<Color>("v:color", Color(0, 0, 0));
 
     IOFlags flags;
     flags.use_binary = false;
@@ -58,7 +52,7 @@ TEST_F(SurfaceMeshIOTest, off_io)
     flags.use_vertex_colors = true;
     flags.use_vertex_texcoords = true;
 
-    mesh.write("test.off",flags);
+    mesh.write("test.off", flags);
     mesh.clear();
     EXPECT_TRUE(mesh.is_empty());
     mesh.read("test.off");
@@ -94,16 +88,16 @@ TEST_F(SurfaceMeshIOTest, stl_io)
     EXPECT_EQ(mesh.n_edges(), size_t(30));
 
     // try to write without normals being present
-    EXPECT_FALSE(mesh.write("test.stl"));
+    ASSERT_THROW(mesh.write("test.stl"), InvalidInputException);
 
     // the same with normals computed
     SurfaceNormals::compute_face_normals(mesh);
-    EXPECT_TRUE(mesh.write("test.stl"));
+    EXPECT_NO_THROW(mesh.write("test.stl"));
 
     // try to write non-triangle mesh
     mesh.clear();
     add_quad();
-    EXPECT_FALSE(mesh.write("test.stl"));
+    ASSERT_THROW(mesh.write("test.stl"), InvalidInputException);
 }
 
 TEST_F(SurfaceMeshIOTest, ply_io)
@@ -124,7 +118,7 @@ TEST_F(SurfaceMeshIOTest, ply_io_binary)
     IOFlags flags;
     flags.use_binary = true;
 
-    mesh.write("binary.ply",flags);
+    mesh.write("binary.ply", flags);
     mesh.clear();
     EXPECT_TRUE(mesh.is_empty());
     mesh.read("binary.ply");
@@ -140,4 +134,20 @@ TEST_F(SurfaceMeshIOTest, xyz_io)
     EXPECT_TRUE(mesh.is_empty());
     mesh.read("test.xyz");
     EXPECT_EQ(mesh.n_vertices(), size_t(3));
+}
+
+TEST_F(SurfaceMeshIOTest, complex_edge)
+{
+    mesh.read("pmp-data/obj/cubes_complex_edge.obj");
+    EXPECT_EQ(mesh.n_vertices(), size_t(30));
+    EXPECT_EQ(mesh.n_faces(), size_t(12));
+    EXPECT_EQ(mesh.n_edges(), size_t(35));
+}
+
+TEST_F(SurfaceMeshIOTest, complex_vertex)
+{
+    mesh.read("pmp-data/obj/cubes_complex_vertex.obj");
+    EXPECT_EQ(mesh.n_vertices(), size_t(27));
+    EXPECT_EQ(mesh.n_faces(), size_t(12));
+    EXPECT_EQ(mesh.n_edges(), size_t(33));
 }

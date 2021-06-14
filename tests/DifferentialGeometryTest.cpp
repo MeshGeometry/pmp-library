@@ -1,16 +1,14 @@
-//=============================================================================
-// Copyright (C) 2017-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2017-2019 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include "gtest/gtest.h"
 
 #include <pmp/SurfaceMesh.h>
 #include <pmp/algorithms/DifferentialGeometry.h>
+#include <pmp/algorithms/SurfaceFactory.h>
+
+#include "Helpers.h"
+
 #include <vector>
 
 using namespace pmp;
@@ -18,9 +16,13 @@ using namespace pmp;
 class DifferentialGeometryTest : public ::testing::Test
 {
 public:
-    SurfaceMesh         mesh;
+    SurfaceMesh mesh;
+    static SurfaceMesh sphere;
+
     Vertex v0, v1, v2, v3;
-    Face   f0;
+    Face f0;
+
+    Vertex central_vertex;
 
     void add_triangle()
     {
@@ -32,23 +34,15 @@ public:
 
     void one_ring()
     {
-        ASSERT_TRUE(mesh.read("pmp-data/off/vertex_onering.off"));
-        EXPECT_EQ(mesh.n_vertices(), size_t(7));
-        EXPECT_EQ(mesh.n_faces(), size_t(6));
-        v0            = Vertex(3); // the central vertex
-        auto points   = mesh.get_vertex_property<Point>("v:point");
-        points[v0][2] = 0.1; // lift central vertex
-    }
-
-    void unit_sphere()
-    {
-        ASSERT_TRUE(mesh.read("pmp-data/off/sphere.off"));
-        EXPECT_EQ(mesh.n_vertices(), size_t(16070));
-        EXPECT_EQ(mesh.n_faces(), size_t(32136));
+        mesh = vertex_onering();
+        central_vertex = Vertex(3);             // the central vertex
+        mesh.position(central_vertex)[2] = 0.1; // lift central vertex
     }
 };
 
-TEST_F(DifferentialGeometryTest, triangle_areaPoints)
+SurfaceMesh DifferentialGeometryTest::sphere = SurfaceFactory::icosphere(5);
+
+TEST_F(DifferentialGeometryTest, triangle_area_points)
 {
     add_triangle();
     Scalar area =
@@ -56,7 +50,7 @@ TEST_F(DifferentialGeometryTest, triangle_areaPoints)
     EXPECT_EQ(area, 0.5);
 }
 
-TEST_F(DifferentialGeometryTest, triangle_areaFace)
+TEST_F(DifferentialGeometryTest, triangle_area_face)
 {
     add_triangle();
     Scalar area = triangle_area(mesh, f0);
@@ -66,21 +60,21 @@ TEST_F(DifferentialGeometryTest, triangle_areaFace)
 TEST_F(DifferentialGeometryTest, voronoi_area_barycentric)
 {
     one_ring();
-    Scalar area = voronoi_area_barycentric(mesh, v0);
-    EXPECT_FLOAT_EQ(area, 0.049180791);
+    Scalar area = voronoi_area_barycentric(mesh, central_vertex);
+    EXPECT_FLOAT_EQ(area, 0.024590395);
 }
 
 TEST_F(DifferentialGeometryTest, laplace)
 {
     one_ring();
-    auto lv = laplace(mesh, v0);
+    auto lv = laplace(mesh, central_vertex);
     EXPECT_GT(norm(lv), 0);
 }
 
 TEST_F(DifferentialGeometryTest, vertex_curvature)
 {
     one_ring();
-    auto vcurv = vertex_curvature(mesh, v0);
+    auto vcurv = vertex_curvature(mesh, central_vertex);
     EXPECT_FLOAT_EQ(vcurv.mean, 6.1538467);
     EXPECT_FLOAT_EQ(vcurv.gauss, 50.860939);
     EXPECT_FLOAT_EQ(vcurv.max, 6.1538467);
@@ -89,19 +83,18 @@ TEST_F(DifferentialGeometryTest, vertex_curvature)
 
 TEST_F(DifferentialGeometryTest, surface_area)
 {
-    unit_sphere();
-    auto area = surface_area(mesh);
+    auto area = surface_area(sphere);
+    EXPECT_NEAR(area, 12.57, 1.0e-2);
+}
 
-#ifdef PMP_SCALAR_TYPE_64
-    EXPECT_FLOAT_EQ(area, 12.563956);
-#else
-    EXPECT_FLOAT_EQ(area, 12.564044);
-#endif
+TEST_F(DifferentialGeometryTest, volume)
+{
+    auto v = volume(sphere);
+    EXPECT_NEAR(v, 4.18, 1.0e-2);
 }
 
 TEST_F(DifferentialGeometryTest, centroid)
 {
-    unit_sphere();
-    auto center = centroid(mesh);
+    auto center = centroid(sphere);
     EXPECT_LT(norm(center), 1e-5);
 }

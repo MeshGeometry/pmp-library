@@ -1,20 +1,10 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/algorithms/SurfaceSubdivision.h>
-#include <pmp/Timer.h>
-
-//=============================================================================
+#include "pmp/algorithms/SurfaceSubdivision.h"
+#include "pmp/algorithms/DifferentialGeometry.h"
 
 namespace pmp {
-
-//=============================================================================
 
 SurfaceSubdivision::SurfaceSubdivision(SurfaceMesh& mesh) : mesh_(mesh)
 {
@@ -22,8 +12,6 @@ SurfaceSubdivision::SurfaceSubdivision(SurfaceMesh& mesh) : mesh_(mesh)
     vfeature_ = mesh_.get_vertex_property<bool>("v:feature");
     efeature_ = mesh_.get_edge_property<bool>("e:feature");
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceSubdivision::catmull_clark()
 {
@@ -41,15 +29,7 @@ void SurfaceSubdivision::catmull_clark()
     // compute face vertices
     for (auto f : mesh_.faces())
     {
-        Point p(0, 0, 0);
-        Scalar c(0);
-        for (auto v : mesh_.vertices(f))
-        {
-            p += points_[v];
-            ++c;
-        }
-        p /= c;
-        fpoint[f] = p;
+        fpoint[f] = centroid(mesh_, f);
     }
 
     // compute edge vertices
@@ -202,15 +182,13 @@ void SurfaceSubdivision::catmull_clark()
     mesh_.remove_face_property(fpoint);
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceSubdivision::loop()
 {
-    Timer t;
-    t.start();
-
     if (!mesh_.is_triangle_mesh())
-        return;
+    {
+        auto what = "SurfaceSubdivision: Not a triangle mesh.";
+        throw InvalidInputException(what);
+    }
 
     // reserve memory
     size_t nv = mesh_.n_vertices();
@@ -286,7 +264,7 @@ void SurfaceSubdivision::loop()
             p /= k;
 
             Scalar beta =
-                (0.625 - pow(0.375 + 0.25 * cos(2.0 * M_PI / k), 2.0));
+                (0.625 - pow(0.375 + 0.25 * std::cos(2.0 * M_PI / k), 2.0));
 
             vpoint[v] = points_[v] * (Scalar)(1.0 - beta) + beta * p;
         }
@@ -362,15 +340,16 @@ void SurfaceSubdivision::loop()
     // clean-up properties
     mesh_.remove_vertex_property(vpoint);
     mesh_.remove_edge_property(epoint);
-
-    t.stop();
-    std::cout << "subdiv took " << t.elapsed() << std::endl;
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceSubdivision::sqrt3()
 {
+    if (!mesh_.is_triangle_mesh())
+    {
+        auto what = "SurfaceSubdivision: Not a triangle mesh.";
+        throw InvalidInputException(what);
+    }
+
     // reserve memory
     int nv = mesh_.n_vertices();
     int ne = mesh_.n_edges();
@@ -390,7 +369,7 @@ void SurfaceSubdivision::sqrt3()
         if (!mesh_.is_boundary(v))
         {
             Scalar n = mesh_.valence(v);
-            Scalar alpha = (4.0 - 2.0 * cos(2.0 * M_PI / n)) / 9.0;
+            Scalar alpha = (4.0 - 2.0 * std::cos(2.0 * M_PI / n)) / 9.0;
             Point p(0, 0, 0);
 
             for (auto vv : mesh_.vertices(v))
@@ -439,6 +418,4 @@ void SurfaceSubdivision::sqrt3()
     }
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

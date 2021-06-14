@@ -1,33 +1,21 @@
-//=============================================================================
-// Copyright (C) 2017-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2017-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include "gtest/gtest.h"
 
-#include <pmp/algorithms/SurfaceFeatures.h>
+#include "pmp/algorithms/SurfaceFeatures.h"
+#include "Helpers.h"
 
 using namespace pmp;
 
-class SurfaceFeaturesTest : public ::testing::Test
-{
-public:
-    SurfaceFeaturesTest()
-    {
-        EXPECT_TRUE(mesh.read("pmp-data/off/icosahedron_subdiv.off"));
-    }
-    SurfaceMesh mesh;
-};
-
 // feature angle
-TEST_F(SurfaceFeaturesTest, detect_feature_angle)
+TEST(SurfaceFeaturesTest, detect_feature_angle)
 {
+    auto mesh = subdivided_icosahedron();
+
     SurfaceFeatures sf(mesh);
-    sf.detect_angle(25);
+    auto nf = sf.detect_angle(25);
+    EXPECT_EQ(nf, 240u);
 
     auto efeature = mesh.get_edge_property<bool>("e:feature");
     bool found = false;
@@ -50,12 +38,12 @@ TEST_F(SurfaceFeaturesTest, detect_feature_angle)
 }
 
 // boundary edges
-TEST_F(SurfaceFeaturesTest, detect_boundary)
+TEST(SurfaceFeaturesTest, detect_boundary)
 {
-    mesh.clear();
-    mesh.read("pmp-data/off/vertex_onering.off");
+    auto mesh = vertex_onering();
     SurfaceFeatures sf(mesh);
-    sf.detect_boundary();
+    auto nb = sf.detect_boundary();
+    EXPECT_EQ(nb, 6u);
 
     auto efeature = mesh.get_edge_property<bool>("e:feature");
     bool found = false;

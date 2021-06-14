@@ -1,33 +1,22 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
-#pragma once
-//=============================================================================
 
-#include <pmp/visualization/GL.h>
-#include <GLFW/glfw3.h>
+#pragma once
+
+#include "pmp/visualization/GL.h"
+
 #include <vector>
 #include <utility>
 
-//=============================================================================
+#include <GLFW/glfw3.h>
 
 namespace pmp {
 
-//=============================================================================
-
-//! \addtogroup visualization visualization
-//! @{
-
 //! A window provided by GLFW
+//! \ingroup visualization
 class Window
 {
-
-public: //------------------------------------------------------ public methods
+public:
     //! constructor
     Window(const char* title, int width, int height, bool showgui = true);
 
@@ -37,7 +26,7 @@ public: //------------------------------------------------------ public methods
     //! main window loop
     int run();
 
-private: //----------------------------- static wrapper functions for callbacks
+private:
     static void glfw_error(int error, const char* description);
     static void glfw_keyboard(GLFWwindow* window, int key, int scancode,
                               int action, int mods);
@@ -52,7 +41,7 @@ private: //----------------------------- static wrapper functions for callbacks
 
     static Window* instance_;
 
-protected: //----------------------------------- callbacks as member functions
+protected:
     //! this function is called when the scene has to be rendered. it
     //! clears the buffers, calls the draw() method, and performs buffer swap
     virtual void display(void) = 0;
@@ -109,8 +98,7 @@ protected:
     //! and an incremented number `n`.
     void screenshot();
 
-
-protected: //------------------------------------------ GLFW related functions
+protected:
     //! width of window
     int width() const { return width_; }
     //! height of window
@@ -118,6 +106,9 @@ protected: //------------------------------------------ GLFW related functions
 
     //! highDPI scaling
     float high_dpi_scaling() const { return scaling_; }
+
+    //! imgui scaling
+    float imgui_scaling() const { return imgui_scale_; }
 
     //! get position of mouse cursor
     void cursor_pos(double& x, double& y) const;
@@ -153,7 +144,10 @@ private:
     int width_, height_;
 
     //! highDPI scaling
-    float scaling_, pixel_ratio_;
+    float scaling_;
+#if __EMSCRIPTEN__
+    float pixel_ratio_;
+#endif
 
     // whether to show ImGUI menu
     bool show_imgui_;
@@ -177,8 +171,4 @@ private:
     unsigned int screenshot_number_;
 };
 
-//=============================================================================
-//! @}
-//=============================================================================
 } // namespace pmp
-//=============================================================================

@@ -1,28 +1,17 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/algorithms/SurfaceFairing.h>
-#include <pmp/algorithms/DifferentialGeometry.h>
+#include "pmp/algorithms/SurfaceFairing.h"
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
-//=============================================================================
+#include "pmp/algorithms/DifferentialGeometry.h"
 
 namespace pmp {
 
-//=============================================================================
-
 using SparseMatrix = Eigen::SparseMatrix<double>;
 using Triplet = Eigen::Triplet<double>;
-
-//=============================================================================
 
 SurfaceFairing::SurfaceFairing(SurfaceMesh& mesh) : mesh_(mesh)
 {
@@ -35,8 +24,6 @@ SurfaceFairing::SurfaceFairing(SurfaceMesh& mesh) : mesh_(mesh)
     idx_ = mesh_.add_vertex_property<int>("fairing:idx", -1);
 }
 
-//-----------------------------------------------------------------------------
-
 SurfaceFairing::~SurfaceFairing()
 {
     // remove properties
@@ -45,8 +32,6 @@ SurfaceFairing::~SurfaceFairing()
     mesh_.remove_edge_property(eweight_);
     mesh_.remove_vertex_property(idx_);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceFairing::fair(unsigned int k)
 {
@@ -131,24 +116,22 @@ void SurfaceFairing::fair(unsigned int k)
     // we need locked vertices as boundary constraints
     if (vertices.size() == mesh_.n_vertices())
     {
-        std::cerr << "SurfaceFairing: need locked vertices as boundary "
-                     "constraints.\n";
-        return;
+        auto what = "SurfaceFairing: Missing boundary constraints.";
+        throw InvalidInputException(what);
     }
 
     // construct matrix & rhs
     const unsigned int n = vertices.size();
     SparseMatrix A(n, n);
     Eigen::MatrixXd B(n, 3);
+    dvec3 b;
 
     std::map<Vertex, double> row;
     std::vector<Triplet> triplets;
 
     for (unsigned int i = 0; i < n; ++i)
     {
-        B(i, 0) = 0.0;
-        B(i, 1) = 0.0;
-        B(i, 2) = 0.0;
+        b = dvec3(0.0);
 
         setup_matrix_row(vertices[i], vweight_, eweight_, k, row);
 
@@ -163,11 +146,11 @@ void SurfaceFairing::fair(unsigned int k)
             }
             else
             {
-                B(i, 0) -= w * points_[v][0];
-                B(i, 1) -= w * points_[v][1];
-                B(i, 2) -= w * points_[v][2];
+                b -= w * static_cast<dvec3>(points_[v]);
             }
         }
+
+        B.row(i) = (Eigen::Vector3d)b;
     }
 
     A.setFromTriplets(triplets.begin(), triplets.end());
@@ -178,19 +161,14 @@ void SurfaceFairing::fair(unsigned int k)
 
     if (solver.info() != Eigen::Success)
     {
-        std::cerr << "SurfaceFairing: Could not solve linear system\n";
+        throw SolverException("SurfaceFairing: Failed to solve linear system.");
     }
     else
     {
         for (unsigned int i = 0; i < n; ++i)
-        {
-            auto v = vertices[i];
-            points_[v] = Point(X(idx_[v], 0), X(idx_[v], 1), X(idx_[v], 2));
-        }
+            points_[vertices[i]] = X.row(i);
     }
 }
-
-//-----------------------------------------------------------------------------
 
 struct Triple
 {
@@ -205,8 +183,6 @@ struct Triple
     double weight_;
     unsigned int degree_;
 };
-
-//-----------------------------------------------------------------------------
 
 void SurfaceFairing::setup_matrix_row(const Vertex v,
                                       VertexProperty<double> vweight,
@@ -263,6 +239,4 @@ void SurfaceFairing::setup_matrix_row(const Vertex v,
     }
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

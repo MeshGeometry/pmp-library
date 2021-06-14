@@ -1,26 +1,22 @@
-//=============================================================================
+// Copyright 2011-2020 the Polygon Mesh Processing Library developers.
+// Distributed under a MIT-style license, see LICENSE.txt for details.
 
-#include <pmp/algorithms/SurfaceHoleFilling.h>
-#include <pmp/algorithms/SurfaceFairing.h>
+#include "pmp/algorithms/SurfaceHoleFilling.h"
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+#include "pmp/algorithms/SurfaceFairing.h"
+
 using SparseMatrix = Eigen::SparseMatrix<double>;
 using Triplet = Eigen::Triplet<double>;
 
-//=============================================================================
-
 namespace pmp {
-
-//=============================================================================
 
 SurfaceHoleFilling::SurfaceHoleFilling(SurfaceMesh& _mesh) : mesh_(_mesh)
 {
     points_ = mesh_.vertex_property<Point>("v:point");
 }
-
-//-----------------------------------------------------------------------------
 
 bool SurfaceHoleFilling::is_interior_edge(Vertex _a, Vertex _b) const
 {
@@ -31,14 +27,10 @@ bool SurfaceHoleFilling::is_interior_edge(Vertex _a, Vertex _b) const
             !mesh_.is_boundary(mesh_.opposite_halfedge(h)));
 }
 
-//-----------------------------------------------------------------------------
-
 Scalar SurfaceHoleFilling::compute_area(Vertex _a, Vertex _b, Vertex _c) const
 {
     return sqrnorm(cross(points_[_b] - points_[_a], points_[_c] - points_[_a]));
 }
-
-//-----------------------------------------------------------------------------
 
 Point SurfaceHoleFilling::compute_normal(Vertex _a, Vertex _b, Vertex _c) const
 {
@@ -46,25 +38,25 @@ Point SurfaceHoleFilling::compute_normal(Vertex _a, Vertex _b, Vertex _c) const
         cross(points_[_b] - points_[_a], points_[_c] - points_[_a]));
 }
 
-//-----------------------------------------------------------------------------
-
 Scalar SurfaceHoleFilling::compute_angle(const Point& _n1,
                                          const Point& _n2) const
 {
     return (1.0 - dot(_n1, _n2));
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceHoleFilling::fill_hole(Halfedge _h)
+void SurfaceHoleFilling::fill_hole(Halfedge h)
 {
-    // is it really a hole?
-    if (!mesh_.is_boundary(_h))
+    if (!h.is_valid())
     {
-        return false;
+        throw InvalidInputException("SurfaceHoleFilling: Invalid halfedge.");
     }
 
-    bool ok = false;
+    // is it really a hole?
+    if (!mesh_.is_boundary(h))
+    {
+        auto what = "SurfaceHoleFilling: Not a boundary halfedge.";
+        throw InvalidInputException(what);
+    }
 
     // lock vertices/edge that already exist, to be later able to
     // identify the filled-in vertices/edges
@@ -77,25 +69,28 @@ bool SurfaceHoleFilling::fill_hole(Halfedge _h)
     for (auto e : mesh_.edges())
         elocked_[e] = true;
 
-    // first do minimal triangulation
-    if (triangulate_hole(_h))
+    try
     {
-        // refine filled-in edges
-        refine();
-        ok = true;
+        triangulate_hole(h); // do minimal triangulation
+        refine();            // refine filled-in edges
+    }
+    catch (InvalidInputException& e)
+    {
+        // clean up
+        hole_.clear();
+        mesh_.remove_vertex_property(vlocked_);
+        mesh_.remove_edge_property(elocked_);
+
+        throw e;
     }
 
     // clean up
     hole_.clear();
     mesh_.remove_vertex_property(vlocked_);
     mesh_.remove_edge_property(elocked_);
-
-    return ok;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceHoleFilling::triangulate_hole(Halfedge _h)
+void SurfaceHoleFilling::triangulate_hole(Halfedge _h)
 {
     // trace hole
     hole_.clear();
@@ -105,14 +100,13 @@ bool SurfaceHoleFilling::triangulate_hole(Halfedge _h)
         // check for manifoldness
         if (!mesh_.is_manifold(mesh_.to_vertex(h)))
         {
-            std::cerr << "[SurfaceHoleFilling] Non-manifold hole\n";
-            return false;
+            auto what = "SurfaceHoleFilling: Non-manifold hole.";
+            throw InvalidInputException(what);
         }
 
         hole_.push_back(h);
     } while ((h = mesh_.next_halfedge(h)) != _h);
     const int n = hole_.size();
-    std::cout << n << " hole edges\n";
 
     // compute minimal triangulation by dynamic programming
     weight_.clear();
@@ -180,11 +174,7 @@ bool SurfaceHoleFilling::triangulate_hole(Halfedge _h)
     // clean up
     weight_.clear();
     index_.clear();
-
-    return true;
 }
-
-//-----------------------------------------------------------------------------
 
 SurfaceHoleFilling::Weight SurfaceHoleFilling::compute_weight(int _i, int _j,
                                                               int _k) const
@@ -227,8 +217,6 @@ SurfaceHoleFilling::Weight SurfaceHoleFilling::compute_weight(int _i, int _j,
     return Weight(angle, area);
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceHoleFilling::refine()
 {
     const int n = hole_.size();
@@ -255,8 +243,6 @@ void SurfaceHoleFilling::refine()
     }
     fairing();
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceHoleFilling::split_long_edges(const Scalar _lmax)
 {
@@ -285,8 +271,6 @@ void SurfaceHoleFilling::split_long_edges(const Scalar _lmax)
         }
     }
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceHoleFilling::collapse_short_edges(const Scalar _lmin)
 {
@@ -329,8 +313,6 @@ void SurfaceHoleFilling::collapse_short_edges(const Scalar _lmin)
 
     mesh_.garbage_collection();
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceHoleFilling::flip_edges()
 {
@@ -396,8 +378,6 @@ void SurfaceHoleFilling::flip_edges()
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void SurfaceHoleFilling::relaxation()
 {
     // properties
@@ -417,28 +397,12 @@ void SurfaceHoleFilling::relaxation()
     }
     const int n = vertices.size();
 
-    // collect constraints
-    std::vector<Vertex> constraints;
-    constraints.reserve(mesh_.n_vertices());
-    for (auto v : mesh_.vertices())
-    {
-        if (!vlocked_[v])
-        {
-            constraints.push_back(v);
-        }
-    }
-    for (auto h : hole_)
-    {
-        constraints.push_back(mesh_.to_vertex(h));
-    }
-    const int m = constraints.size();
-
     // setup matrix & rhs
-    Eigen::MatrixXd B(m, 3);
+    Eigen::MatrixXd B(n, 3);
     std::vector<Triplet> triplets;
-    for (int i = 0; i < m; ++i)
+    for (int i = 0; i < n; ++i)
     {
-        Vertex v = constraints[i];
+        Vertex v = vertices[i];
         Point b(0, 0, 0);
         Scalar c(0);
 
@@ -456,38 +420,32 @@ void SurfaceHoleFilling::relaxation()
         else
             triplets.emplace_back(i, idx[v], c);
 
-        B(i, 0) = b[0];
-        B(i, 1) = b[1];
-        B(i, 2) = b[2];
+        B.row(i) = (Eigen::Vector3d)b;
     }
 
     // solve least squares system
-    SparseMatrix A(m, n);
+    SparseMatrix A(n, n);
     A.setFromTriplets(triplets.begin(), triplets.end());
-    SparseMatrix AtA = A.transpose() * A;
-    Eigen::MatrixXd AtB = A.transpose() * B;
-    Eigen::SimplicialLDLT<SparseMatrix> solver(AtA);
-    Eigen::MatrixXd X = solver.solve(AtB);
+    Eigen::SimplicialLDLT<SparseMatrix> solver(A);
+    Eigen::MatrixXd X = solver.solve(B);
+
     if (solver.info() != Eigen::Success)
     {
-        std::cerr << "[SurfaceHoleFilling] Solver failed\n";
-        return;
+        // clean up
+        mesh_.remove_vertex_property(idx);
+        auto what = "SurfaceHoleFilling: Failed to solve linear system.";
+        throw SolverException(what);
     }
 
     // copy solution to mesh vertices
     for (int i = 0; i < n; ++i)
     {
-        Vertex v = vertices[i];
-        points_[v][0] = X(i, 0);
-        points_[v][1] = X(i, 1);
-        points_[v][2] = X(i, 2);
+        points_[vertices[i]] = X.row(i);
     }
 
     // clean up
     mesh_.remove_vertex_property(idx);
 }
-
-//-----------------------------------------------------------------------------
 
 void SurfaceHoleFilling::fairing()
 {
@@ -505,14 +463,21 @@ void SurfaceHoleFilling::fairing()
     for (auto v : mesh_.vertices())
         vsel[v] = !vlocked_[v];
 
-    // fair new vertices
-    SurfaceFairing fairing(mesh_);
-    fairing.minimize_curvature();
+    try
+    {
+        // fair new vertices
+        SurfaceFairing fairing(mesh_);
+        fairing.minimize_curvature();
+    }
+    catch (SolverException& e)
+    {
+        // clean up
+        mesh_.remove_vertex_property(vsel);
+        throw e;
+    }
 
     // clean up
     mesh_.remove_vertex_property(vsel);
 }
 
-//=============================================================================
-}
-//=============================================================================
+} // namespace pmp

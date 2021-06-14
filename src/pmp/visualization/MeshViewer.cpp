@@ -1,25 +1,15 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include "MeshViewer.h"
+#include "pmp/visualization/MeshViewer.h"
+
+#include <iostream>
+#include <limits>
+#include <sstream>
 
 #include <imgui.h>
 
-#include <cfloat>
-#include <iostream>
-#include <sstream>
-
-//=============================================================================
-
 namespace pmp {
-
-//=============================================================================
 
 MeshViewer::MeshViewer(const char* title, int width, int height, bool showgui)
     : TrackballViewer(title, width, height, showgui)
@@ -41,55 +31,71 @@ MeshViewer::MeshViewer(const char* title, int width, int height, bool showgui)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 MeshViewer::~MeshViewer() = default;
-
-//-----------------------------------------------------------------------------
 
 bool MeshViewer::load_mesh(const char* filename)
 {
     // load mesh
-    if (mesh_.read(filename))
+    try
     {
-        // update scene center and bounds
-        BoundingBox bb = mesh_.bounds();
-        set_scene((vec3)bb.center(), 0.5 * bb.size());
-
-        // compute face & vertex normals, update face indices
-        update_mesh();
-
-        // set draw mode
-        if (mesh_.n_faces())
-        {
-            set_draw_mode("Solid Smooth");
-        }
-        else if (mesh_.n_vertices())
-        {
-            set_draw_mode("Points");
-        }
-
-        // print mesh statistic
-        std::cout << "Load " << filename << ": " << mesh_.n_vertices()
-                  << " vertices, " << mesh_.n_faces() << " faces\n";
-
-        filename_ = filename;
-        mesh_.set_crease_angle(crease_angle_);
-        return true;
+        mesh_.read(filename);
+    }
+    catch (const IOException& e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return false;
     }
 
-    std::cerr << "Failed to read mesh from " << filename << " !" << std::endl;
-    return false;
+    // update scene center and bounds
+    BoundingBox bb = mesh_.bounds();
+    set_scene((vec3)bb.center(), 0.5 * bb.size());
+
+    // compute face & vertex normals, update face indices
+    update_mesh();
+
+    // set draw mode
+    if (mesh_.n_faces() == 0)
+    {
+        set_draw_mode("Points");
+    }
+
+    // print mesh statistic
+    std::cout << "Loaded " << filename << ": " << mesh_.n_vertices()
+              << " vertices, " << mesh_.n_faces() << " faces\n";
+
+    filename_ = filename;
+    mesh_.set_crease_angle(crease_angle_);
+
+    return true;
 }
 
-//-----------------------------------------------------------------------------
+void MeshViewer::load_matcap(const char* filename)
+{
+    try
+    {
+        mesh_.load_matcap(filename);
+    }
+    catch (const IOException& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return;
+    }
+    set_draw_mode("Texture");
+}
 
-bool MeshViewer::load_texture(const char* filename, GLint format,
+void MeshViewer::load_texture(const char* filename, GLint format,
                               GLint min_filter, GLint mag_filter, GLint wrap)
 {
     // load texture from file
-    if (!mesh_.load_texture(filename, format, min_filter, mag_filter, wrap))
-        return false;
+    try
+    {
+        mesh_.load_texture(filename, format, min_filter, mag_filter, wrap);
+    }
+    catch (const IOException& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return;
+    }
 
     set_draw_mode("Texture");
 
@@ -98,11 +104,7 @@ bool MeshViewer::load_texture(const char* filename, GLint format,
     mesh_.set_diffuse(0.9);
     mesh_.set_specular(0.0);
     mesh_.set_shininess(1.0);
-
-    return true;
 }
-
-//-----------------------------------------------------------------------------
 
 void MeshViewer::update_mesh()
 {
@@ -114,8 +116,6 @@ void MeshViewer::update_mesh()
     // re-compute face and vertex normals
     mesh_.update_opengl_buffers();
 }
-
-//-----------------------------------------------------------------------------
 
 void MeshViewer::process_imgui()
 {
@@ -138,15 +138,11 @@ void MeshViewer::process_imgui()
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void MeshViewer::draw(const std::string& drawMode)
 {
     // draw mesh
     mesh_.draw(projection_matrix_, modelview_matrix_, drawMode);
 }
-
-//-----------------------------------------------------------------------------
 
 void MeshViewer::keyboard(int key, int scancode, int action, int mods)
 {
@@ -175,14 +171,12 @@ void MeshViewer::keyboard(int key, int scancode, int action, int mods)
     }
 }
 
-//-----------------------------------------------------------------------------
-
 Vertex MeshViewer::pick_vertex(int x, int y)
 {
     Vertex vmin;
 
     vec3 p;
-    Scalar d, dmin(FLT_MAX);
+    Scalar d, dmin(std::numeric_limits<Scalar>::max());
 
     if (TrackballViewer::pick(x, y, p))
     {
@@ -200,6 +194,4 @@ Vertex MeshViewer::pick_vertex(int x, int y)
     return vmin;
 }
 
-//=============================================================================
 } // namespace pmp
-//=============================================================================

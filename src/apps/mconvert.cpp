@@ -1,18 +1,10 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
 #include <pmp/SurfaceMesh.h>
 #include <unistd.h>
 
 using namespace pmp;
-
-//=============================================================================
 
 void usage_and_exit()
 {
@@ -21,8 +13,6 @@ void usage_and_exit()
               << "\n";
     exit(1);
 }
-
-//----------------------------------------------------------------------------
 
 int main(int argc, char** argv)
 {
@@ -61,22 +51,28 @@ int main(int argc, char** argv)
 
     // load input mesh
     SurfaceMesh mesh;
-    if (!mesh.read(input))
+    try
     {
-        std::cerr << "cannot read mesh \"" << input << "\"\n";
+        mesh.read(input);
+    }
+    catch (const IOException& e)
+    {
+        std::cerr << "Failed to read mesh: " << e.what() << std::endl;
         exit(1);
     }
 
     // write output mesh
     IOFlags flags;
     flags.use_binary = binary;
-    if (!mesh.write(output, flags))
+    try
     {
-        std::cerr << "cannot write mesh \"" << output << "\"\n";
+        mesh.write(output, flags);
+    }
+    catch (const IOException& e)
+    {
+        std::cerr << "Failed to write mesh: " << e.what() << std::endl;
         exit(1);
     }
 
     exit(0);
 }
-
-//=============================================================================

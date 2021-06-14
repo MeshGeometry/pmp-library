@@ -1,22 +1,17 @@
-//=============================================================================
-// Copyright (C) 2011-2019 The pmp-library developers
-// Copyright (C) 2001-2005 by Computer Graphics Group, RWTH Aachen
-//
-// This file is part of the Polygon Mesh Processing Library.
+// Copyright 2011-2021 the Polygon Mesh Processing Library developers.
+// Copyright 2001-2005 by Computer Graphics Group, RWTH Aachen
 // Distributed under a MIT-style license, see LICENSE.txt for details.
-//
-// SPDX-License-Identifier: MIT-with-employer-disclaimer
-//=============================================================================
 
-#include <pmp/SurfaceMeshIO.h>
-
-#include <rply.h>
+#include "pmp/SurfaceMeshIO.h"
 
 #include <clocale>
-#include <cfloat>
-#include <fstream>
 #include <cstring>
 #include <cctype>
+
+#include <fstream>
+#include <limits>
+
+#include <rply.h>
 
 // helper function
 template <typename T>
@@ -34,13 +29,9 @@ void tfwrite(FILE* out, const T& t)
     PMP_ASSERT(n_items > 0);
 }
 
-//=============================================================================
-
 namespace pmp {
 
-//=============================================================================
-
-bool SurfaceMeshIO::read(SurfaceMesh& mesh)
+void SurfaceMeshIO::read(SurfaceMesh& mesh)
 {
     std::setlocale(LC_NUMERIC, "C");
 
@@ -50,88 +41,58 @@ bool SurfaceMeshIO::read(SurfaceMesh& mesh)
     // extract file extension
     std::string::size_type dot(filename_.rfind("."));
     if (dot == std::string::npos)
-        return false;
+        throw IOException("Could not determine file extension!");
     std::string ext = filename_.substr(dot + 1, filename_.length() - dot - 1);
     std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
 
     // extension determines reader
     if (ext == "off")
-    {
-        return read_off(mesh);
-    }
+        read_off(mesh);
     else if (ext == "obj")
-    {
-        return read_obj(mesh);
-    }
+        read_obj(mesh);
     else if (ext == "stl")
-    {
-        return read_stl(mesh);
-    }
+        read_stl(mesh);
     else if (ext == "ply")
-    {
-        return read_ply(mesh);
-    }
+        read_ply(mesh);
     else if (ext == "pmp")
-    {
-        return read_pmp(mesh);
-    }
+        read_pmp(mesh);
     else if (ext == "xyz")
-    {
-        return read_xyz(mesh);
-    }
+        read_xyz(mesh);
     else if (ext == "agi")
-    {
-        return read_agi(mesh);
-    }
+        read_agi(mesh);
+    else
+        throw IOException("Could not find reader for " + filename_);
 
-    // we didn't find a reader module
-    return false;
+    add_failed_faces(mesh);
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write(const SurfaceMesh& mesh)
 {
     // extract file extension
     std::string::size_type dot(filename_.rfind("."));
     if (dot == std::string::npos)
-        return false;
+        throw IOException("Could not determine file extension!");
     std::string ext = filename_.substr(dot + 1, filename_.length() - dot - 1);
     std::transform(ext.begin(), ext.end(), ext.begin(), tolower);
 
     // extension determines reader
     if (ext == "off")
-    {
-        return write_off(mesh);
-    }
+        write_off(mesh);
     else if (ext == "obj")
-    {
-        return write_obj(mesh);
-    }
+        write_obj(mesh);
     else if (ext == "stl")
-    {
-        return write_stl(mesh);
-    }
+        write_stl(mesh);
     else if (ext == "ply")
-    {
-        return write_ply(mesh);
-    }
+        write_ply(mesh);
     else if (ext == "pmp")
-    {
-        return write_pmp(mesh);
-    }
+        write_pmp(mesh);
     else if (ext == "xyz")
-    {
-        return write_xyz(mesh);
-    }
-
-    // we didn't find a writer module
-    return false;
+        write_xyz(mesh);
+    else
+        throw IOException("Could not find writer for " + filename_);
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_obj(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_obj(SurfaceMesh& mesh)
 {
     char s[200];
     float x, y, z;
@@ -146,7 +107,7 @@ bool SurfaceMeshIO::read_obj(SurfaceMesh& mesh)
     // open file (in ASCII mode)
     FILE* in = fopen(filename_.c_str(), "r");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // clear line once
     memset(&s, 0, 200);
@@ -262,7 +223,7 @@ bool SurfaceMeshIO::read_obj(SurfaceMesh& mesh)
                 }
             }
 
-            Face f = mesh.add_face(vertices);
+            Face f = add_face(mesh, vertices);
 
             // add texture coordinates
             if (with_tex_coord)
@@ -291,103 +252,78 @@ bool SurfaceMeshIO::read_obj(SurfaceMesh& mesh)
     }
 
     fclose(in);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_obj(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_obj(const SurfaceMesh& mesh)
 {
     FILE* out = fopen(filename_.c_str(), "w");
     if (!out)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // comment
-    fprintf(out, "# OBJ export from SurfaceMesh\n");
+    fprintf(out, "# OBJ export from PMP\n");
 
-    //vertices
-    VertexProperty<Point> points = mesh.get_vertex_property<Point>("v:point");
-    for (SurfaceMesh::VertexIterator vit = mesh.vertices_begin();
-         vit != mesh.vertices_end(); ++vit)
+    // write vertices
+    auto points = mesh.get_vertex_property<Point>("v:point");
+    for (auto v : mesh.vertices())
     {
-        const Point& p = points[*vit];
+        const Point& p = points[v];
         fprintf(out, "v %.10f %.10f %.10f\n", p[0], p[1], p[2]);
     }
 
-    //normals
-    VertexProperty<Point> normals = mesh.get_vertex_property<Point>("v:normal");
+    // write normals
+    auto normals = mesh.get_vertex_property<Normal>("v:normal");
     if (normals)
     {
-        for (SurfaceMesh::VertexIterator vit = mesh.vertices_begin();
-             vit != mesh.vertices_end(); ++vit)
+        for (auto v : mesh.vertices())
         {
-            const Point& p = normals[*vit];
-            fprintf(out, "vn %.10f %.10f %.10f\n", p[0], p[1], p[2]);
+            const Normal& n = normals[v];
+            fprintf(out, "vn %.10f %.10f %.10f\n", n[0], n[1], n[2]);
         }
     }
 
-    // optional texture coordinates
-    // do we have them?
-    std::vector<std::string> hprops = mesh.halfedge_properties();
-    bool with_tex_coord = false;
-    auto hpropEnd = hprops.end();
-    auto hpropStart = hprops.begin();
-    while (hpropStart != hpropEnd)
+    // write texture coordinates
+    auto tex_coords = mesh.get_halfedge_property<TexCoord>("h:tex");
+    if (tex_coords)
     {
-        if (0 == (*hpropStart).compare("h:tex"))
+        for (auto h : mesh.halfedges())
         {
-            with_tex_coord = true;
-        }
-        ++hpropStart;
-    }
-
-    //if so then add
-    if (with_tex_coord)
-    {
-        HalfedgeProperty<TexCoord> texCoord =
-            mesh.get_halfedge_property<TexCoord>("h:tex");
-        for (SurfaceMesh::HalfedgeIterator hit = mesh.halfedges_begin();
-             hit != mesh.halfedges_end(); ++hit)
-        {
-            const TexCoord& pt = texCoord[*hit];
-            fprintf(out, "vt %.10f %.10f \n", pt[0], pt[1]);
+            const TexCoord& pt = tex_coords[h];
+            fprintf(out, "vt %.10f %.10f\n", pt[0], pt[1]);
         }
     }
 
-    //faces
-    for (SurfaceMesh::FaceIterator fit = mesh.faces_begin();
-         fit != mesh.faces_end(); ++fit)
+    // write faces
+    for (auto f : mesh.faces())
     {
         fprintf(out, "f");
-        SurfaceMesh::VertexAroundFaceCirculator fvit = mesh.vertices(*fit),
-                                                fvend = fvit;
-        SurfaceMesh::HalfedgeAroundFaceCirculator fhit = mesh.halfedges(*fit);
-        do
+
+        auto h = mesh.halfedges(f);
+        for (auto v : mesh.vertices(f))
         {
-            if (with_tex_coord)
+            auto idx = v.idx() + 1;
+            if (tex_coords)
             {
                 // write vertex index, texCoord index and normal index
-                fprintf(out, " %d/%d/%d", (*fvit).idx() + 1, (*fhit).idx() + 1,
-                        (*fvit).idx() + 1);
-                ++fhit;
+                fprintf(out, " %d/%d/%d", idx, (*h).idx() + 1, idx);
+                ++h;
             }
             else
             {
                 // write vertex index and normal index
-                fprintf(out, " %d//%d", (*fvit).idx() + 1, (*fvit).idx() + 1);
+                fprintf(out, " %d//%d", idx, idx);
             }
-        } while (++fvit != fvend);
+        }
         fprintf(out, "\n");
     }
 
     fclose(out);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool read_off_ascii(SurfaceMesh& mesh, FILE* in, const bool has_normals,
-                    const bool has_texcoords, const bool has_colors)
+void SurfaceMeshIO::read_off_ascii(SurfaceMesh& mesh, FILE* in,
+                                   const bool has_normals,
+                                   const bool has_texcoords,
+                                   const bool has_colors)
 {
     char line[1000], *lp;
     int nc;
@@ -485,19 +421,14 @@ bool read_off_ascii(SurfaceMesh& mesh, FILE* in, const bool has_normals,
             vertices[j] = Vertex(idx);
             lp += nc;
         }
-        if (vertices.size() == nv)
-            mesh.add_face(vertices);
-        else
-            std::cerr << "OFF: fail to read face " << i << std::endl;
+        add_face(mesh, vertices);
     }
-
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool read_off_binary(SurfaceMesh& mesh, FILE* in, const bool has_normals,
-                     const bool has_texcoords, const bool has_colors)
+void SurfaceMeshIO::read_off_binary(SurfaceMesh& mesh, FILE* in,
+                                    const bool has_normals,
+                                    const bool has_texcoords,
+                                    const bool has_colors)
 {
     IndexType i, j, idx(0);
     IndexType nv(0), nf(0), ne(0);
@@ -507,7 +438,7 @@ bool read_off_binary(SurfaceMesh& mesh, FILE* in, const bool has_normals,
 
     // binary cannot (yet) read colors
     if (has_colors)
-        return false;
+        throw IOException("Colors not supported for binary OFF file.");
 
     // properties
     VertexProperty<Normal> normals;
@@ -557,26 +488,21 @@ bool read_off_binary(SurfaceMesh& mesh, FILE* in, const bool has_normals,
             tfread(in, idx);
             vertices[j] = Vertex(idx);
         }
-        mesh.add_face(vertices);
+        add_face(mesh, vertices);
     }
-
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_off_binary(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_off_binary(const SurfaceMesh& mesh)
 {
     FILE* out = fopen(filename_.c_str(), "w");
     if (!out)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     fprintf(out, "OFF BINARY\n");
     fclose(out);
     IndexType nv = (IndexType)mesh.n_vertices();
     IndexType nf = (IndexType)mesh.n_faces();
     IndexType ne = 0;
-    ;
 
     out = fopen(filename_.c_str(), "ab");
     tfwrite(out, nv);
@@ -597,12 +523,9 @@ bool SurfaceMeshIO::write_off_binary(const SurfaceMesh& mesh)
             tfwrite(out, (IndexType)fv.idx());
     }
     fclose(out);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_off(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_off(SurfaceMesh& mesh)
 {
     char line[200];
     bool has_texcoords = false;
@@ -615,7 +538,7 @@ bool SurfaceMeshIO::read_off(SurfaceMesh& mesh)
     // open file (in ASCII mode)
     FILE* in = fopen(filename_.c_str(), "r");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // read header: [ST][C][N][4][n]OFF BINARY
     char* c = fgets(line, 200, in);
@@ -649,16 +572,20 @@ bool SurfaceMeshIO::read_off(SurfaceMesh& mesh)
     if (strncmp(c, "OFF", 3) != 0)
     {
         fclose(in);
-        return false;
-    } // no OFF
+        throw IOException("Failed to parse OFF header");
+    }
     if (strncmp(c + 4, "BINARY", 6) == 0)
         is_binary = true;
 
-    // homogeneous coords, and vertex dimension != 3 are not supported
-    if (has_hcoords || has_dim)
+    if (has_hcoords)
     {
         fclose(in);
-        return false;
+        throw IOException("Error: Homogeneous coordinates not supported.");
+    }
+    if (has_dim)
+    {
+        fclose(in);
+        throw IOException("Error: vertex dimension != 3 not supported");
     }
 
     // if binary: reopen file in binary mode
@@ -671,25 +598,25 @@ bool SurfaceMeshIO::read_off(SurfaceMesh& mesh)
     }
 
     // read as ASCII or binary
-    bool ok = (is_binary ? read_off_binary(mesh, in, has_normals, has_texcoords,
-                                           has_colors)
-                         : read_off_ascii(mesh, in, has_normals, has_texcoords,
-                                          has_colors));
+    if (is_binary)
+        read_off_binary(mesh, in, has_normals, has_texcoords, has_colors);
+    else
+        read_off_ascii(mesh, in, has_normals, has_texcoords, has_colors);
 
     fclose(in);
-    return ok;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_off(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_off(const SurfaceMesh& mesh)
 {
     if (flags_.use_binary)
-        return write_off_binary(mesh);
+    {
+        write_off_binary(mesh);
+        return;
+    }
 
     FILE* out = fopen(filename_.c_str(), "w");
     if (!out)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     bool has_normals = false;
     bool has_texcoords = false;
@@ -760,17 +687,14 @@ bool SurfaceMeshIO::write_off(const SurfaceMesh& mesh)
     }
 
     fclose(out);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_pmp(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_pmp(SurfaceMesh& mesh)
 {
     // open file (in binary mode)
     FILE* in = fopen(filename_.c_str(), "rb");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // how many elements?
     unsigned int nv(0), ne(0), nh(0), nf(0);
@@ -820,17 +744,14 @@ bool SurfaceMeshIO::read_pmp(SurfaceMesh& mesh)
     }
 
     fclose(in);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_xyz(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_xyz(SurfaceMesh& mesh)
 {
     // open file (in ASCII mode)
     FILE* in = fopen(filename_.c_str(), "r");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // add normal property
     // \todo this adds property even if no normals present. change it.
@@ -857,18 +778,15 @@ bool SurfaceMeshIO::read_xyz(SurfaceMesh& mesh)
     }
 
     fclose(in);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
 // \todo remove duplication with read_xyz
-bool SurfaceMeshIO::read_agi(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_agi(SurfaceMesh& mesh)
 {
     // open file (in ASCII mode)
     FILE* in = fopen(filename_.c_str(), "r");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // add normal property
     auto normal = mesh.vertex_property<Normal>("v:normal");
@@ -895,17 +813,14 @@ bool SurfaceMeshIO::read_agi(SurfaceMesh& mesh)
     }
 
     fclose(in);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_pmp(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_pmp(const SurfaceMesh& mesh)
 {
     // open file (in binary mode)
     FILE* out = fopen(filename_.c_str(), "wb");
     if (!out)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // get properties
     auto vconn = mesh.get_vertex_property<SurfaceMesh::VertexConnectivity>(
@@ -943,10 +858,7 @@ bool SurfaceMeshIO::write_pmp(const SurfaceMesh& mesh)
         fwrite((char*)htex.data(), sizeof(TexCoord), nh, out);
 
     fclose(out);
-    return true;
 }
-
-//-----------------------------------------------------------------------------
 
 // helper to assemble vertex data
 static int vertexCallback(p_ply_argument argument)
@@ -964,8 +876,6 @@ static int vertexCallback(p_ply_argument argument)
 
     return 1;
 }
-
-//-----------------------------------------------------------------------------
 
 // helper to assemble face data
 static int faceCallback(p_ply_argument argument)
@@ -992,9 +902,7 @@ static int faceCallback(p_ply_argument argument)
     return 1;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_ply(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_ply(SurfaceMesh& mesh)
 {
     // add object properties to hold temporary data
     auto point = mesh.add_object_property<Point>("g:point");
@@ -1004,10 +912,10 @@ bool SurfaceMeshIO::read_ply(SurfaceMesh& mesh)
     p_ply ply = ply_open(filename_.c_str(), nullptr, 0, nullptr);
 
     if (!ply)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     if (!ply_read_header(ply))
-        return false;
+        throw IOException("Failed to read PLY header!");
 
     // setup callbacks for basic properties
     ply_set_read_cb(ply, "vertex", "x", vertexCallback, &mesh, 0);
@@ -1018,20 +926,16 @@ bool SurfaceMeshIO::read_ply(SurfaceMesh& mesh)
 
     // read the data
     if (!ply_read(ply))
-        return false;
+        throw IOException("Failed to read PLY data!");
 
     ply_close(ply);
 
     // clean-up properties
     mesh.remove_object_property(point);
     mesh.remove_object_property(vertices);
-
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_ply(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_ply(const SurfaceMesh& mesh)
 {
     e_ply_storage_mode mode = flags_.use_binary ? PLY_LITTLE_ENDIAN : PLY_ASCII;
     p_ply ply = ply_create(filename_.c_str(), mode, nullptr, 0, nullptr);
@@ -1063,16 +967,13 @@ bool SurfaceMeshIO::write_ply(const SurfaceMesh& mesh)
     }
 
     ply_close(ply);
-    return true;
 }
-
-//-----------------------------------------------------------------------------
 
 // helper class for STL reader
 class CmpVec
 {
 public:
-    CmpVec(float eps = FLT_MIN) : eps_(eps) {}
+    CmpVec(Scalar eps = std::numeric_limits<Scalar>::min()) : eps_(eps) {}
 
     bool operator()(const vec3& v0, const vec3& v1) const
     {
@@ -1090,12 +991,10 @@ public:
     }
 
 private:
-    float eps_;
+    Scalar eps_;
 };
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
+void SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
 {
     char line[100], *c;
     unsigned int i, nT(0);
@@ -1104,14 +1003,14 @@ bool SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
     std::vector<Vertex> vertices(3);
     size_t n_items(0);
 
-    CmpVec comp(FLT_MIN);
+    CmpVec comp(std::numeric_limits<Scalar>::min());
     std::map<vec3, Vertex, CmpVec> vMap(comp);
     std::map<vec3, Vertex, CmpVec>::iterator vMapIt;
 
     // open file (in ASCII mode)
     FILE* in = fopen(filename_.c_str(), "r");
     if (!in)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     // ASCII or binary STL?
     c = fgets(line, 6, in);
@@ -1126,7 +1025,7 @@ bool SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
         fclose(in);
         in = fopen(filename_.c_str(), "rb");
         if (!in)
-            return false;
+            throw IOException("Failed to open file: " + filename_);
 
         // skip dummy header
         n_items = fread(line, 1, 80, in);
@@ -1164,7 +1063,7 @@ bool SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
             // Add face only if it is not degenerated
             if ((vertices[0] != vertices[1]) && (vertices[0] != vertices[2]) &&
                 (vertices[1] != vertices[2]))
-                mesh.add_face(vertices);
+                add_face(mesh, vertices);
 
             n_items = fread(line, 1, 2, in);
             PMP_ASSERT(n_items > 0);
@@ -1220,30 +1119,27 @@ bool SurfaceMeshIO::read_stl(SurfaceMesh& mesh)
                 if ((vertices[0] != vertices[1]) &&
                     (vertices[0] != vertices[2]) &&
                     (vertices[1] != vertices[2]))
-                    mesh.add_face(vertices);
+                    add_face(mesh, vertices);
             }
         }
     }
 
     fclose(in);
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_stl(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_stl(const SurfaceMesh& mesh)
 {
     if (!mesh.is_triangle_mesh())
     {
-        std::cerr << "write_stl: not a triangle mesh!" << std::endl;
-        return false;
+        auto what = "SurfaceMeshIO::write_stl: Not a triangle mesh.";
+        throw InvalidInputException(what);
     }
 
     auto fnormals = mesh.get_face_property<Normal>("f:normal");
     if (!fnormals)
     {
-        std::cerr << "write_stl: no face normals present!" << std::endl;
-        return false;
+        auto what = "SurfaceMeshIO::write_stl: No face normals present.";
+        throw InvalidInputException(what);
     }
 
     std::ofstream ofs(filename_.c_str());
@@ -1270,16 +1166,13 @@ bool SurfaceMeshIO::write_stl(const SurfaceMesh& mesh)
     }
     ofs << "endsolid" << std::endl;
     ofs.close();
-    return true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool SurfaceMeshIO::write_xyz(const SurfaceMesh& mesh)
+void SurfaceMeshIO::write_xyz(const SurfaceMesh& mesh)
 {
     std::ofstream ofs(filename_);
     if (!ofs)
-        return false;
+        throw IOException("Failed to open file: " + filename_);
 
     auto vnormal = mesh.get_vertex_property<Normal>("v:normal");
     for (auto v : mesh.vertices())
@@ -1294,9 +1187,43 @@ bool SurfaceMeshIO::write_xyz(const SurfaceMesh& mesh)
     }
 
     ofs.close();
-    return true;
 }
 
-//=============================================================================
+Face SurfaceMeshIO::add_face(SurfaceMesh& mesh,
+                             const std::vector<Vertex>& vertices)
+{
+    Face f;
+    try
+    {
+        f = mesh.add_face(vertices);
+    }
+    catch (const TopologyException&)
+    {
+        failed_faces_.push_back(vertices);
+    }
+    return f;
+}
+
+void SurfaceMeshIO::add_failed_faces(SurfaceMesh& mesh)
+{
+    for (auto vertices : failed_faces_)
+    {
+        auto duplicates = duplicate_vertices(mesh, vertices);
+        mesh.add_face(duplicates);
+    }
+    failed_faces_.clear();
+}
+
+std::vector<Vertex> SurfaceMeshIO::duplicate_vertices(
+    SurfaceMesh& mesh, const std::vector<Vertex>& vertices) const
+{
+    std::vector<Vertex> duplicates;
+    for (auto v : vertices)
+    {
+        auto dv = mesh.add_vertex(mesh.position(v));
+        duplicates.push_back(dv);
+    }
+    return duplicates;
+}
+
 } // namespace pmp
-//=============================================================================
